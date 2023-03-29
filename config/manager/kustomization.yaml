@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: docker.io/anik120/catalogsource-controller
-  newTag: manifests
+  newTag: latest
