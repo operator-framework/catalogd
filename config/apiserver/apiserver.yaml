@@ -1,0 +1,126 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.core.rukpak.io
+  labels:
+    api: catalogd
+    apiserver: "true"
+    app.kubernetes.io/name: apiservice
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/component: apiservice
+    app.kubernetes.io/created-by: catalogd
+    app.kubernetes.io/part-of: catalogd
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  version: v1beta1
+  group: core.rukpak.io
+  groupPriorityMinimum: 2000
+  service:
+    name: catalogd
+    namespace: system
+  versionPriority: 10
+  caBundle: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUR6RENDQXJTZ0F3SUJBZ0lVT0t0RXJnS3pGMTl4ZXh6cUVXbExxcGlmN2lnd0RRWUpLb1pJaHZjTkFRRUwKQlFBd2RERUxNQWtHQTFVRUJoTUNkVzR4Q3pBSkJnTlZCQWdNQW5OME1Rb3dDQVlEVlFRSERBRnNNUW93Q0FZRApWUVFLREFGdk1Rc3dDUVlEVlFRTERBSnZkVEV6TURFR0ExVUVBd3dxY25WcmNHRnJMWEJoWTJ0aFoyVnpaWEoyClpYSXRZMlZ5ZEdsbWFXTmhkR1V0WVhWMGFHOXlhWFI1TUI0WERUSXlNVEF3TnpFNU1Ua3dNMW9YRFRJek1UQXcKTnpFNU1Ua3dNMW93ZERFTE1Ba0dBMVVFQmhNQ2RXNHhDekFKQmdOVkJBZ01Bbk4wTVFvd0NBWURWUVFIREFGcwpNUW93Q0FZRFZRUUtEQUZ2TVFzd0NRWURWUVFMREFKdmRURXpNREVHQTFVRUF3d3FjblZyY0dGckxYQmhZMnRoCloyVnpaWEoyWlhJdFkyVnlkR2xtYVdOaGRHVXRZWFYwYUc5eWFYUjVNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUYKQUFPQ0FROEFNSUlCQ2dLQ0FRRUFxZlRZSkpURmwwZ2F0RVQvUDlFTlhsWjRqYUdLSklMSFZVb2VjankwRmxVRgpDVnYvdTYrMzNwcnFBNjBiWmpzenFzN1FmTmZRTmd3azllTE03TDRiNVkyZnc1SitPTEhtSlc3S0FHVTcxa2JsCnBWaXZ6MFBjbUdNZlFFQU1kYTB0T2xZRjQyNEIvZTE2TEwyNDBQNzdxOFprQzEvU3N1NVlpMkVvRzlOQ3c2ZUgKalhRT2dXcFd0OE1VT1E1ZmZYRUdBcTlwcWJNeGN0UUxDS3JHVlVHVGdmaHQvb2xKWlcxbTJ6QVhEVDRQa0ZYRQo2MnNNVFBmamFFNWtmeUhxKy9nRXlUU0FPbW1LVzdJOXBNOHdZcVJ1ZHB4alZrWm5UQWlMVkNDckk2SGhaVVlECmpURThzTlhld2J2WU5rdnlVUnN4QjdEWHdOcE1kN2d3SzhiQ1BqTHBiUUlEQVFBQm8xWXdWREFkQmdOVkhRNEUKRmdRVVZjeXQ1L2F2RVc2SXJiOC9CKzkvYjhDZnFEb3dId1lEVlIwakJCZ3dGb0FVVmN5dDUvYXZFVzZJcmI4LwpCKzkvYjhDZnFEb3dFZ1lEVlIwVEFRSC9CQWd3QmdFQi93SUJBVEFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBClhFbU15L0tnMUZnVFdnL244ajcrak5aSFhHcWs2ZnZQMzNVbTZMaTdVL0JSOWZyQ05rQk9GSU9ZV21BWUlBQksKbEhSMStDQkJ5NncwSjFVMjZ4VEVaTnVPQVhOSHdPQVlNaURia2xRamlIMEdtcWpNUGxDQlhoUGpHTEhBK2h0dwpXd3JTL2h1bkJlU2RmbERtYThUbm9OMDUzTHZBanFNN3cwU3JOaWw3ZzhtM2k2djFmdGxNNkNJU1N0M05wRTZNCllnU2pMRTRLNmxCVFI0VU81K0hsanBVK2JWUCtHcDRMWHBGaEZJMU9jZjAxTC9iRGF3elhmYXNoNm8yVS9lOE8KOUZTa1Q2TzFlVW5COFRyRVMrZDlaKzBQS2dqZXAzU0NmV1N5WDFSdzZKZGM3SmNYY0I0ZmdLQ3FMNWtIbHNXUgpNcXErQ3UycVlZbnNiclo4ZVZaUGtRPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo="
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apiserver
+  namespace: system
+  labels:
+    api: catalogd
+    apiserver: "true"
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/component: apiservice
+    app.kubernetes.io/created-by: catalogd
+    app.kubernetes.io/part-of: catalogd
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      api: catalogd
+      apiserver: "true"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        api: catalogd
+        apiserver: "true"
+    spec:
+      serviceAccountName: apiserver
+      containers:
+      - name: apiserver
+        image: apiserver:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: catalogd-apiserver-certs
+          mountPath: /apiserver.local.config/certificates
+          readOnly: true
+        command:
+        - "./apiserver"
+        args:
+        - "--etcd-servers=http://catalogd-etcd-svc:2379"
+        - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
+        - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
+        - "--audit-log-path=-"
+        - "--feature-gates=APIPriorityAndFairness=false"
+        - "--audit-log-maxage=0"
+        - "--audit-log-maxbackup=0"
+        - "--profiling"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 20Mi
+          limits:
+            cpu: 100m
+            memory: 30Mi
+      volumes:
+      - name: catalogd-apiserver-certs
+        secret:
+          secretName: catalogd-apiserver
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apiserver
+  namespace: system
+  labels:
+    api: catalogd
+    apiserver: "true"
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 443
+  selector:
+    api: catalogd
+    apiserver: "true"
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    api: catalogd
+    apiserver: "true"
+  name: selfsigned-issuer
+  namespace: system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    api: catalogd
+    apiserver: "true"
+  name: server-cert
+  namespace: system
+spec:
+  dnsNames:
+  - catalogd-apiserver.catalogd.svc
+  - catalogd-apiserver.catalogd.svc.cluster.local
+  - localhost
+  issuerRef:
+    kind: Issuer
+    name: catalogd-selfsigned-issuer
+  secretName: catalogd-apiserver
