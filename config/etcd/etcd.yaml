@@ -63,7 +63,7 @@ spec:
   - metadata:
      name: etcd-data-dir
      annotations:
-        volume.beta.kubernetes.io/storage-class: local-path
+        volume.beta.kubernetes.io/storage-class: standard
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
