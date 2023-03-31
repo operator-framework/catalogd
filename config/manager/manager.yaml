@@ -98,5 +98,6 @@ spec:
           requests:
             cpu: 1000m
             memory: 200Mi
+        imagePullPolicy: IfNotPresent
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
