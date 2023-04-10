@@ -33,11 +33,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	corev1beta1 "github.com/operator-framework/catalogd/pkg/apis/core/v1beta1"
 )
@@ -78,7 +76,7 @@ func (r *CatalogSourceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err = r.createUnpackJob(ctx, catalogSource); err != nil {
-				updateStatusError(&catalogSource, err)
+				updateUnpackJobError(&catalogSource, err)
 				if err := r.Client.Status().Update(ctx, &catalogSource); err != nil {
 					return ctrl.Result{}, fmt.Errorf("updating catalogsource status: %v", err)
 				}
@@ -87,7 +85,7 @@ func (r *CatalogSourceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// after creating the job requeue
 			return ctrl.Result{Requeue: true}, nil
 		}
-		updateStatusError(&catalogSource, err)
+		updateUnpackJobError(&catalogSource, err)
 		if err := r.Client.Status().Update(ctx, &catalogSource); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating catalogsource status: %v", err)
 		}
@@ -96,11 +94,16 @@ func (r *CatalogSourceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	declCfg, err := r.parseUnpackLogs(ctx, job)
 	if err != nil {
+		// check if the error is due to pod not being present and requeue if it is
+		if corev1beta1.IsUnpackPodNotPresentError(err) {
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+
 		// check if this is a pod phase error and requeue if it is
 		if corev1beta1.IsUnpackPhaseError(err) {
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 		}
-		updateStatusError(&catalogSource, err)
+		updateParseLogsError(&catalogSource, err)
 		if err := r.Client.Status().Update(ctx, &catalogSource); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating catalogsource status: %v", err)
 		}
@@ -109,7 +112,7 @@ func (r *CatalogSourceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// TODO: Can we create these resources in parallel using goroutines?
 	if err := r.buildPackages(ctx, declCfg, catalogSource); err != nil {
-		updateStatusError(&catalogSource, err)
+		updateBuildPackagesError(&catalogSource, err)
 		if err := r.Client.Status().Update(ctx, &catalogSource); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating catalogsource status: %v", err)
 		}
@@ -117,7 +120,7 @@ func (r *CatalogSourceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if err := r.buildBundleMetadata(ctx, declCfg, catalogSource); err != nil {
-		updateStatusError(&catalogSource, err)
+		updateBuildMetadataError(&catalogSource, err)
 		if err := r.Client.Status().Update(ctx, &catalogSource); err != nil {
 			return ctrl.Result{}, fmt.Errorf("updating catalogsource status: %v", err)
 		}
@@ -142,26 +145,46 @@ func updateStatusReady(catalogSource *corev1beta1.CatalogSource) {
 	})
 }
 
-func updateStatusError(catalogSource *corev1beta1.CatalogSource, err error) {
+func updateUnpackJobError(catalogSource *corev1beta1.CatalogSource, err error) {
 	meta.SetStatusCondition(&catalogSource.Status.Conditions, metav1.Condition{
 		Type:    corev1beta1.TypeReady,
 		Status:  metav1.ConditionFalse,
-		Reason:  corev1beta1.ReasonUnpackError,
-		Message: err.Error(),
+		Reason:  corev1beta1.ReasonJobUnpackError,
+		Message: "catalog contents have not been unpacked correctly and so are unavailable on the cluster",
+	})
+}
+
+func updateParseLogsError(catalogSource *corev1beta1.CatalogSource, err error) {
+	meta.SetStatusCondition(&catalogSource.Status.Conditions, metav1.Condition{
+		Type:    corev1beta1.TypeReady,
+		Status:  metav1.ConditionFalse,
+		Reason:  corev1beta1.ReasonParseUnpackLogsError,
+		Message: "catalog contents could not be read and transformed into a File-Based Catalog format and so are unavailable on the cluster",
+	})
+}
+
+func updateBuildPackagesError(catalogSource *corev1beta1.CatalogSource, err error) {
+	meta.SetStatusCondition(&catalogSource.Status.Conditions, metav1.Condition{
+		Type:    corev1beta1.TypeReady,
+		Status:  metav1.ConditionFalse,
+		Reason:  corev1beta1.ReasonBuildPackagesError,
+		Message: "unable to create Package CRs from catalog contents",
+	})
+}
+
+func updateBuildMetadataError(catalogSource *corev1beta1.CatalogSource, err error) {
+	meta.SetStatusCondition(&catalogSource.Status.Conditions, metav1.Condition{
+		Type:    corev1beta1.TypeReady,
+		Status:  metav1.ConditionFalse,
+		Reason:  corev1beta1.ReasonBuildMetadataError,
+		Message: "unable to create BundleMetadata CRs from catalog contents",
 	})
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CatalogSourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// TODO: Due to us not having proper error handling,
-		// not having this results in the controller getting into
-		// an error state because once we update the status it requeues
-		// and then errors out when trying to create all the Packages again
-		// even though they already exist. This should be resolved by the fix
-		// for https://github.com/operator-framework/catalogd/issues/6. The fix for
-		// #6 should also remove the usage of `builder.WithPredicates(predicate.GenerationChangedPredicate{})`
-		For(&corev1beta1.CatalogSource{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&corev1beta1.CatalogSource{}).
 		Complete(r)
 }
 
@@ -202,6 +225,10 @@ func (r *CatalogSourceReconciler) buildBundleMetadata(ctx context.Context, declC
 		ctrlutil.SetOwnerReference(&catalogSource, &bundleMeta, r.Scheme)
 
 		if err := r.Client.Create(ctx, &bundleMeta); err != nil {
+			// If BundleMetadata CR already exists, continue
+			if errors.IsNotFound(err) {
+				return nil
+			}
 			return fmt.Errorf("creating bundlemetadata %q: %w", bundleMeta.Name, err)
 		}
 	}
@@ -249,6 +276,10 @@ func (r *CatalogSourceReconciler) buildPackages(ctx context.Context, declCfg *de
 		ctrlutil.SetOwnerReference(&catalogSource, &pack, r.Scheme)
 
 		if err := r.Client.Create(ctx, &pack); err != nil {
+			// If Create fails due to Package CR already being present, continue
+			if errors.IsNotFound(err) {
+				return nil
+			}
 			return fmt.Errorf("creating package %q: %w", pack.Name, err)
 		}
 	}
@@ -280,7 +311,7 @@ func (r *CatalogSourceReconciler) parseUnpackLogs(ctx context.Context, job *batc
 	}
 
 	if len(podsForJob.Items) <= 0 {
-		return nil, fmt.Errorf("no pods for job")
+		return nil, corev1beta1.NewUnpackPodNotPresentError(fmt.Sprintf("no pods found for job %q", job.GetName()))
 	}
 	pod := podsForJob.Items[0]
 

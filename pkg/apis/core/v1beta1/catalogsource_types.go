@@ -30,8 +30,11 @@ import (
 const (
 	TypeReady = "Ready"
 
-	ReasonContentsAvailable = "ContentsAvailable"
-	ReasonUnpackError       = "UnpackError"
+	ReasonContentsAvailable    = "ContentsAvailable"
+	ReasonJobUnpackError       = "JobUnpackError"
+	ReasonParseUnpackLogsError = "ParseUnpackLogsError"
+	ReasonBuildPackagesError   = "BuildPackagesError"
+	ReasonBuildMetadataError   = "BuildMetadataError"
 )
 
 // +genclient
@@ -155,5 +158,24 @@ func (upe *UnpackPhaseError) Error() string {
 
 func IsUnpackPhaseError(err error) bool {
 	_, ok := err.(*UnpackPhaseError)
+	return ok
+}
+
+type UnpackPodNotPresentError struct {
+	message string
+}
+
+func NewUnpackPodNotPresentError(message string) *UnpackPodNotPresentError {
+	return &UnpackPodNotPresentError{
+		message: message,
+	}
+}
+
+func (u *UnpackPodNotPresentError) Error() string {
+	return u.message
+}
+
+func IsUnpackPodNotPresentError(err error) bool {
+	_, ok := err.(*UnpackPodNotPresentError)
 	return ok
 }
