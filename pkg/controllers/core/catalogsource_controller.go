@@ -17,8 +17,10 @@ limitations under the License.
 package core
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
@@ -212,13 +214,8 @@ func (r *CatalogSourceReconciler) checkUnpackJobComplete(ctx context.Context, jo
 			}
 		}
 
-		// No failures so ensure the job has a completed status
-		// TODO: This is probably redundant. Check to see if we can just return true if we made it here
-		if cond, ok := conds[batchv1.JobComplete]; ok {
-			if cond.Status == v1.ConditionTrue {
-				return true, nil
-			}
-		}
+		// No failures and job has a completion time so job successfully completed
+		return true, nil
 	}
 
 	return false, nil
@@ -391,7 +388,12 @@ func (r *CatalogSourceReconciler) parseUnpackLogs(ctx context.Context, job *batc
 	}
 	defer podLogs.Close()
 
-	return declcfg.LoadReader(podLogs)
+	logs, err := io.ReadAll(podLogs)
+	if err != nil {
+		return nil, fmt.Errorf("reading pod logs: %w", err)
+	}
+
+	return declcfg.LoadReader(bytes.NewReader(logs))
 }
 
 // unpackJob creates the manifest for an unpack Job given a CatalogSource
