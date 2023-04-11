@@ -1,11 +1,11 @@
-## pprof
+# pprof
 
 This folder contains some profiles that can be read using [pprof](https://github.com/google/pprof) to show how the core kubernetes apiserver and the custom catalogd apiserver CPU & Memory utilization is affected by the creation and reconciliation of the sample `CatalogSource` CR found at `../config/samples/catalogsource.yaml`.
 
 Instead of providing static screenshots and losing the interactivity associated with these `pprof` profiles, each of the files with the extension `.pb` can be used to view the profiles that were the result of running `pprof` against the live processes.
 
 To view the `pprof` profiles in the most interactive way (or if you have no prior `pprof`experience) it is recommended to run:
-```
+```bash
 go tool pprof -http=localhost:<port> somefile.pb
 ```
 
@@ -38,7 +38,7 @@ In this section, we will break down the differences between how the core kube-ap
 | cpu     | 1.72s / 30s (5.73%)  | 1.99s / 30.06s (6.62%)  | 1720ms / 60.06s (2.86%) |
 
 The `Normalized Difference` Metric was evaluated by running:
-```
+```bash
 go tool pprof -http=localhost:6060 -diff_base=pprof/kubeapiserver_alone_cpu_profile.pb -normalize pprof/kubeapiserver_cpu_profile.pb
 ```
 This command will normalize the profiles to better compare the differences. In its simplest form this difference was calculated by `pprof/kubeapiserver_alone_cpu_profile.pb - pprof/kubeapiserver_cpu_profile.pb`
@@ -55,7 +55,7 @@ According to the `Normalized Difference`, there appears to be little to no diffe
 | alloc_objects | 19717785             | 33134306                | 102, 0.00052% of 19717785 total |
 
 The `Normalized Difference` Metric was evaluated by running:
-```
+```bash
 go tool pprof -http=localhost:6060 -diff_base=pprof/kubeapiserver_alone_heap_profile.pb -normalize pprof/kubeapiserver_heap_profile.pb
 ```
 This command will normalize the profiles to better compare the differences. In its simplest form this difference was calculated by `pprof/kubeapiserver_alone_heap_profile.pb - pprof/kubeapiserver_heap_profile.pb`
@@ -80,7 +80,7 @@ This section is being added as the pprof metrics don't necessarily show the whol
 **TLDR**: CPU utilization spike of 0.156 cores and settles ~0.011 cores above prior utilization. Memory consumption increase of 22Mi.
 
 This image shows the spike in CPU utilization and the increase in Memory consumption. In this scenario, the command:
-```
+```bash
 kubectl apply -f config/samples/catalogsource.yaml
 ```
 was run right at 1:44 PM.
@@ -90,7 +90,7 @@ The CPU spike lasted ~3 minutes and the values were:
 - 1:45PM (PEAK) - 0.223 cores
 - 1:47PM - 0.078 cores
 
-With this, we can see that without the catalogd apiserver the core kube-apiserver had a CPU utilization spike of 0.156 cores and then settled at ~0.011 cores above what the utilization was prior to the reconciliation of the sample `CatalogSource` CR. 
+With this, we can see that without the catalogd apiserver the core kube-apiserver had a CPU utilization spike of 0.156 cores and then settled at ~0.011 cores above what the utilization was prior to the reconciliation of the sample `CatalogSource` CR.
 
 The memory consumption increased over the span of ~3 minutes and then stabilized. The values were:
 - 1:44PM - 289Mi
@@ -101,13 +101,13 @@ With this, we can see that without the catalogd apiserver the core kube-apiserve
 
 ### Core kube-apiserver with catalogd apiserver
 
-#### kube-apiserver:
+#### kube-apiserver
 ![kube-apiserver CPU and mem metric graph with custom apiserver](images/kubeapiserver_metrics.png)
 
 **TLDR**: CPU utilization spike of 0.125 cores and settles ~0.001 cores above prior utilization. Memory consumption increase of ~26Mi.
 
 This image shows the spike in CPU utilization and the increase in Memory consumption. In this scenario, the command:
-```
+```bash
 kubectl apply -f config/samples/catalogsource.yaml
 ```
 was run right at 3:06 PM
@@ -118,7 +118,7 @@ The CPU spike lasted ~3 minutes and the values were:
 - 3:08 PM (PEAK) - 0.215 cores
 - 3:09 PM - 0.091 cores
 
-With this, we can see that with the catalogd apiserver the core kube-apiserver had a CPU utilization spike of 0.125 cores and then settled at ~0.001 cores above what the utilization was prior to the reconciliation of the sample `CatalogSource` CR. 
+With this, we can see that with the catalogd apiserver the core kube-apiserver had a CPU utilization spike of 0.125 cores and then settled at ~0.001 cores above what the utilization was prior to the reconciliation of the sample `CatalogSource` CR.
 
 The memory consumption increased over the span of ~3 minutes and then stabilized. The values were:
 - 3:06PM - 337Mi
@@ -134,7 +134,7 @@ With this, we can see that with the catalogd apiserver the core kube-apiserver h
 **TLDR**: potential increase of ~0.012 cores, but more likely ~0.002 cores. Memory consumption increase of ~0.1Mi
 
 This image shows the spike in CPU utilization and the increase in Memory consumption. In this scenario, the command:
-```
+```bash
 kubectl apply -f config/samples/catalogsource.yaml
 ```
 was run right at 3:06 PM
@@ -169,7 +169,7 @@ Overall, when running both the kube-apiserver and the catalogd apiserver the tot
 **TLDR**: CPU spike of 0.288 cores, settling ~0.003 cores above the previous consumption. Memory consumption of ~232.2Mi.
 
 This image shows the spike in CPU utilization and the increase in Memory consumption. In this scenario, the command:
-```
+```bash
 kubectl apply -f config/samples/catalogsource.yaml
 ```
 was run right at 3:06 PM

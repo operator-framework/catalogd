@@ -1,26 +1,20 @@
-# catalogd
+# Catalogd
 
-This repository is a prototype for a custom apiserver that uses a (dedicated ectd instance)[configs/etcd] to serve [FBC](https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs) content on cluster in a Kubernetes native way on cluster.
+Catalogd runs in a Kubernetes cluster and servers content of [FBCs](https://olm.operatorframework.io/docs/reference/file-based-catalogs/) to clients.
 
+## Quickstart
 
-## Enhacement 
+```bash
+$ make kind-cluster; make install; kubectl apply -f config/samples/core_v1beta1_catalogsource.yaml
+.
+.
+.
 
-https://hackmd.io/@i2YBW1rSQ8GcKcTIHn9CCA/B1cMe1kHj
-
-## Quickstart. 
-
-```
-$ kind create cluster
-$ kubectl apply -f https://github.com/operator-framework/catalogd/config/crd/bases/
-$ kubectl apply -f https://github.com/operator-framework/catalogd/config/
-$ kubectl create ns test
-$ kubectl apply -f config/samples/catalogsource.yaml
-
-$ kubectl get catalogsource -n test 
+$ kubectl get catalogsource  
 NAME                   AGE
 catalogsource-sample   98s
 
-$ kubectl get bundlemetadata -n test 
+$ kubectl get bundlemetadata 
 NAME                                               AGE
 3scale-community-operator.v0.7.0                   28s
 3scale-community-operator.v0.8.2                   28s
@@ -40,7 +34,7 @@ flux.v0.15.3                                       1s
 .
 .
 
-$ kubectl get packages -n test 
+$ kubectl get packages 
 NAME                                        AGE
 3scale-community-operator                   77m
 ack-apigatewayv2-controller                 77m
@@ -62,6 +56,7 @@ ack-opensearchservice-controller            77m
 ```
 
 ## Contributing
+
 Thanks for your interest in contributing to `catalogd`!
 
 `catalogd` is in the very early stages of development and a more in depth contributing guide will come in the near future.
@@ -69,47 +64,39 @@ Thanks for your interest in contributing to `catalogd`!
 In the mean time, it is assumed you know how to make contributions to open source projects in general and this guide will only focus on how to manually test your changes (no automated testing yet).
 
 If you have any questions, feel free to reach out to us on the Kubernetes Slack channel [#olm-dev](https://kubernetes.slack.com/archives/C0181L6JYQ2) or [create an issue](https://github.com/operator-framework/catalogd/issues/new)
+
 ### Testing Local Changes
+
 **Prerequisites**
+
 - [Install kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
 
 **Local (not on cluster)**
+
 > **Note**: This will work *only* for the controller
+
 - Create a cluster:
+
 ```sh
-kind create cluster
+make kind-cluster
 ```
-- Install CRDs and run the controller locally:
+
+- Install CRDs and run the controller locally
+
 ```sh
 kubectl apply -f config/crd/bases/ && make run
 ```
 
 **On Cluster**
-- Build the images locally:
-```sh
-make docker-build-controller && make docker-build-server
-```
+
 - Create a cluster:
+
 ```sh
-kind create cluster
+make kind-cluster
 ```
-- Load the images onto the cluster:
+
+- Install catalogd on cluster
+
 ```sh
-kind load docker-image quay.io/operator-framework/catalogd-controller:latest && kind load docker-image quay.io/operator-framework/catalogd-server:latest
-``` 
-- Install cert-manager:
-```sh
- make cert-manager
-```
-- Install the CRDs
-```sh
-kubectl apply -f config/crd/bases/
-```
-- Deploy the apiserver, etcd, and controller: 
-```sh
-kubectl apply -f config/
-```
-- Create the sample CatalogSource (this will trigger the reconciliation loop): 
-```sh
-kubectl apply -f config/samples/catalogsource.yaml
+make install
 ```
