@@ -11,6 +11,9 @@ vendor/
 bin/
 dist/
 cover.out
+catalogd.yaml
+manager
+apiserver
 
 # apiserver certificates 
 config/certificates

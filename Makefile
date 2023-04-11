@@ -4,6 +4,7 @@
 GIT_COMMIT              ?= $(shell git rev-parse HEAD)
 VERSION_FLAGS           ?= -ldflags "GitCommit=$(GIT_COMMIT)"
 GO_BUILD_TAGS           ?= upstream
+VERSION                 ?= $(GIT_COMMIT)
 # Image URL to use all building/pushing controller image targets
 CONTROLLER_IMG          ?= quay.io/operator-framework/catalogd-controller
 # Image URL to use all building/pushing apiserver image targets
@@ -76,11 +77,11 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 
 .PHONY: build-controller
 build-controller: generate fmt vet ## Build manager binary.
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o bin/manager main.go
+	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o manager cmd/manager/main.go
 
 .PHONY: build-server
 build-server: fmt vet ## Build api-server binary.
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o bin/apiserver cmd/apiserver/main.go
+	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o apiserver cmd/apiserver/main.go
 
 .PHONY: run
 run: generate fmt vet ## Run a controller from your host.
@@ -155,6 +156,9 @@ export APISERVER_IMAGE_REPO ?= $(SERVER_IMG)
 export IMAGE_TAG ?= $(IMG_TAG)
 release: goreleaser ## Runs goreleaser for catalogd. By default, this will run only as a snapshot and will not publish any artifacts unless it is run with different arguments. To override the arguments, run with "GORELEASER_ARGS=...". When run as a github action from a tag, this target will publish a full release.
 	$(GORELEASER) $(GORELEASER_ARGS)
+
+quickstart: kustomize generate ## Generate the installation release manifests and scripts
+	kubectl kustomize config/default | sed "s/:devel/:$(VERSION)/g" > catalogd.yaml
 	
 ################
 # Hack / Tools #
