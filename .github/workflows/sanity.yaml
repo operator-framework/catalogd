@@ -1,0 +1,32 @@
+name: sanity
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+    - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: "go.mod"
+      - name: Run verification checks
+        run: make verify
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Lint markdown files
+        uses: github/super-linter/slim@v4
+        env:
+          VALIDATE_ALL_CODEBASE: true
+          DEFAULT_BRANCH: main
+          # only runs the markdown linter
+          VALIDATE_MARKDOWN: true
