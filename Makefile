@@ -4,7 +4,7 @@
 GIT_COMMIT              ?= $(shell git rev-parse HEAD)
 VERSION_FLAGS           ?= -ldflags "GitCommit=$(GIT_COMMIT)"
 GO_BUILD_TAGS           ?= upstream
-VERSION                 ?= $(GIT_COMMIT)
+VERSION                 ?= $(shell git describe --tags --always --dirty)
 # Image URL to use all building/pushing controller image targets
 CONTROLLER_IMG          ?= quay.io/operator-framework/catalogd-controller
 # Image URL to use all building/pushing apiserver image targets
@@ -77,11 +77,11 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 
 .PHONY: build-controller
 build-controller: generate fmt vet ## Build manager binary.
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o manager cmd/manager/main.go
+	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o bin/manager cmd/manager/main.go
 
 .PHONY: build-server
 build-server: fmt vet ## Build api-server binary.
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o apiserver cmd/apiserver/main.go
+	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o bin/apiserver cmd/apiserver/main.go
 
 .PHONY: run
 run: generate fmt vet ## Run a controller from your host.
@@ -89,7 +89,7 @@ run: generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build-controller
 docker-build-controller: build-controller test ## Build docker image with the controller manager.
-	docker build -f controller.Dockerfile -t ${CONTROLLER_IMG}:${IMG_TAG} .
+	docker build -f controller.Dockerfile -t ${CONTROLLER_IMG}:${IMG_TAG} bin/
 
 .PHONY: docker-push-controller
 docker-push-controller: ## Push docker image with the controller manager.
@@ -97,7 +97,7 @@ docker-push-controller: ## Push docker image with the controller manager.
 
 .PHONY: docker-build-server
 docker-build-server: build-server test ## Build docker image with the apiserver.
-	docker build -f apiserver.Dockerfile -t ${SERVER_IMG}:${IMG_TAG} .
+	docker build -f apiserver.Dockerfile -t ${SERVER_IMG}:${IMG_TAG} bin/
 
 .PHONY: docker-push-server
 docker-push-server: ## Push docker image with the apiserver.
