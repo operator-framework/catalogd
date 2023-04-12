@@ -182,42 +182,17 @@ func (r *CatalogSourceReconciler) ensureUnpackJob(ctx context.Context, catalogSo
 // "Failed", "FailureTarget", or "Suspended" state or an error is encountered
 // when attempting to check the status of the Job
 func (r *CatalogSourceReconciler) checkUnpackJobComplete(ctx context.Context, job *batchv1.Job) (bool, error) {
-	// Create a copy of the job so we don't modify the original Job
-	jobCopy := job.DeepCopy()
-
-	// Attempt to get the job
-	err := r.Client.Get(ctx, client.ObjectKeyFromObject(jobCopy), jobCopy)
-	if err != nil {
-		return false, err
-	}
-
 	// If the completion time is non-nil that means the Job has completed
-	if jobCopy.Status.CompletionTime != nil {
-		// Loop through the conditions and pull out all the conditions
-		conds := map[batchv1.JobConditionType]batchv1.JobCondition{}
-		for _, cond := range jobCopy.Status.Conditions {
-			conds[cond.Type] = cond
-		}
-
-		// Check for signs of failure first. If any of the below
-		// conditions have a status of True return an error
-		failConds := []batchv1.JobConditionType{
-			batchv1.JobFailed,
-			batchv1.JobFailureTarget,
-			batchv1.JobSuspended,
-		}
-		for _, failCond := range failConds {
-			if cond, ok := conds[failCond]; ok {
-				if cond.Status == v1.ConditionTrue {
-					return false, fmt.Errorf("unpack job has condition %q with a status of %q", failCond, v1.ConditionTrue)
-				}
+	if job.Status.CompletionTime != nil {
+		// Loop through the conditions and check for any fail conditions
+		for _, cond := range job.Status.Conditions {
+			if cond.Status == v1.ConditionTrue && cond.Type != batchv1.JobComplete {
+				return false, nil
 			}
 		}
-
 		// No failures and job has a completion time so job successfully completed
 		return true, nil
 	}
-
 	return false, nil
 }
 
