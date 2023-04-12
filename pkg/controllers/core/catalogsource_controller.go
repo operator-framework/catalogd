@@ -187,7 +187,7 @@ func (r *CatalogSourceReconciler) checkUnpackJobComplete(ctx context.Context, jo
 		// Loop through the conditions and check for any fail conditions
 		for _, cond := range job.Status.Conditions {
 			if cond.Status == v1.ConditionTrue && cond.Type != batchv1.JobComplete {
-				return false, nil
+				return false, fmt.Errorf("unpack job has condition %q with a status of %q", cond.Type, cond.Status)
 			}
 		}
 		// No failures and job has a completion time so job successfully completed
