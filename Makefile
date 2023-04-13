@@ -22,8 +22,9 @@ CERT_MGR_VERSION        ?= v1.11.0
 ENVTEST_SERVER_VERSION = $(shell go list -m k8s.io/client-go | cut -d" " -f2 | sed 's/^v0\.\([[:digit:]]\{1,\}\)\.[[:digit:]]\{1,\}$$/1.\1.x/')
 
 # Cluster configuration
-KIND_CLUSTER_NAME       ?= catalogd
+CLUSTER_NAME            ?= catalogd
 CATALOGD_NAMESPACE      ?= catalogd-system
+CLUSTER_TOOL            ?= kind
 
 ##@ General
 
@@ -104,28 +105,55 @@ docker-push-server: ## Push docker image with the apiserver.
 
 ##@ Deploy
 
+.PHONY: cluster
+cluster: $(CLUSTER_TOOL)-cluster ## Standup a local cluster using the tooling specified in the CLUSTER_TOOL variable. Currently supported tools are kind and k3d
+
+.PHONY: cluster-cleanup
+cluster-cleanup: $(CLUSTER_TOOL)-cluster-cleanup ## Delete the local cluster using the tooling specified in the CLUSTER_TOOL variable. Currently supported tools are kind and k3d
+
+.PHONY: cluster-load
+cluster-load: $(CLUSTER_TOOL)-load ## Load the built images onto the local cluster using the tooling specified in the CLUSTER_TOOL variable. Currently supported tools are kind and k3d
+
 .PHONY: kind-cluster
 kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
-	$(KIND) create cluster --name ${KIND_CLUSTER_NAME} 
-	$(KIND) export kubeconfig --name ${KIND_CLUSTER_NAME}
+	$(KIND) create cluster --name ${CLUSTER_NAME} 
+	$(KIND) export kubeconfig --name ${CLUSTER_NAME}
 
 .PHONY: kind-cluster-cleanup
 kind-cluster-cleanup: kind ## Delete the kind cluster
-	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
+	$(KIND) delete cluster --name ${CLUSTER_NAME}
 
 .PHONY: kind-load
-kind-load: kind ## Load the built images onto the local cluster 
-	$(KIND) export kubeconfig --name ${KIND_CLUSTER_NAME}
-	$(KIND) load docker-image $(CONTROLLER_IMG):${IMG_TAG} --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image $(SERVER_IMG):${IMG_TAG} --name $(KIND_CLUSTER_NAME)
+kind-load: kind ## Load the built images onto the kind cluster 
+	$(KIND) export kubeconfig --name ${CLUSTER_NAME}
+	$(KIND) load docker-image $(CONTROLLER_IMG):${IMG_TAG} --name $(CLUSTER_NAME)
+	$(KIND) load docker-image $(SERVER_IMG):${IMG_TAG} --name $(CLUSTER_NAME)
+
+.PHONY: k3d-cluster
+k3d-cluster: k3d k3d-cluster-cleanup ## Standup a k3d cluster
+	$(K3D) cluster create ${CLUSTER_NAME} 
+	$(K3D) kubeconfig merge -d ${CLUSTER_NAME}
+
+.PHONY: k3d-cluster-cleanup
+k3d-cluster-cleanup: k3d ## Delete the k3d cluster
+	$(K3D) cluster delete ${CLUSTER_NAME}
+
+.PHONY: k3d-load
+k3d-load: k3d ## Load the built images onto the k3d cluster 
+	$(K3D) kubeconfig merge -d ${CLUSTER_NAME}
+	$(K3D) image import $(CONTROLLER_IMG):${IMG_TAG} --cluster $(CLUSTER_NAME)
+	$(K3D) image import $(SERVER_IMG):${IMG_TAG} --cluster $(CLUSTER_NAME)
 
 .PHONY: install 
-install: docker-build-server docker-build-controller kind-load cert-manager deploy wait ## Install local catalogd
+install: docker-build-server docker-build-controller cluster-load cert-manager deploy wait ## Install local catalogd
 	
 .PHONY: deploy
 deploy: kustomize ## Deploy CatalogSource controller and ApiServer to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}:${IMG_TAG}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${SERVER_IMG}:${IMG_TAG}
+ifeq "$(CLUSTER_TOOL)" "k3d"
+	sed -i -E 's/standard/local-path/' config/etcd/etcd.yaml
+endif
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
@@ -182,6 +210,7 @@ CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
 KIND := $(abspath $(TOOLS_BIN_DIR)/kind)
+K3D := $(abspath $(TOOLS_BIN_DIR)/k3d)
 KUSTOMIZE := $(abspath $(TOOLS_BIN_DIR)/kustomize)
 
 kind: $(TOOLS_BIN_DIR) ## Build a local copy of kind
@@ -198,3 +227,6 @@ setup-envtest: $(TOOLS_BIN_DIR) ## Build a local copy of envtest
 
 kustomize: $(TOOLS_BIN_DIR) ## Build a local copy of kustomize
 	GOBIN=$(TOOLS_BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
+
+k3d: $(TOOLS_BIN_DIR) ## Download a local copy of k3d
+	GOBIN=$(TOOLS_BIN_DIR) go install github.com/k3d-io/k3d/v5@v5.4.9
