@@ -1,10 +1,14 @@
-
 # Build info
- 
 GIT_COMMIT              ?= $(shell git rev-parse HEAD)
-VERSION_FLAGS           ?= -ldflags "GitCommit=$(GIT_COMMIT)"
+GIT_VERSION             ?= $(shell git describe --tags --always --dirty)
+GIT_TREE_STATE          ?= $(shell [[ -z $(git status --porcelain) ]] && echo "clean" || echo "dirty")
+BUILD_DATE              ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+ORG                     ?= github.com/operator-framework
+REPO                    ?= $(ORG)/catalogd
+VERSION_PKG             ?= $(REPO)/internal/version
+CTRL_VERSION_FLAGS      ?= -ldflags "-X $(VERSION_PKG).gitVersion=$(GIT_VERSION)"
+SERVER_VERSION_FLAGS    ?= -ldflags "-X $(VERSION_PKG).gitVersion=$(GIT_VERSION) -X $(VERSION_PKG).gitCommit=$(GIT_COMMIT) -X $(VERSION_PKG).gitTreeState=$(GIT_TREE_STATE) -X $(VERSION_PKG).buildDate=$(BUILD_DATE)"
 GO_BUILD_TAGS           ?= upstream
-VERSION                 ?= $(shell git describe --tags --always --dirty)
 # Image URL to use all building/pushing controller image targets
 CONTROLLER_IMG          ?= quay.io/operator-framework/catalogd-controller
 # Image URL to use all building/pushing apiserver image targets
@@ -77,12 +81,12 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 
 .PHONY: build-controller
 build-controller: generate fmt vet ## Build manager binary.
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o bin/manager cmd/manager/main.go
+	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(CTRL_VERSION_FLAGS) -o bin/manager cmd/manager/main.go
 
 # TODO: When the apiserver is working properly, uncomment this target:
 # .PHONY: build-server
 # build-server: fmt vet ## Build api-server binary.
-# 	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o bin/apiserver cmd/apiserver/main.go
+# 	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(SERVER_VERSION_FLAGS) -o bin/apiserver cmd/apiserver/main.go
 
 .PHONY: run
 run: generate fmt vet ## Run a controller from your host.
