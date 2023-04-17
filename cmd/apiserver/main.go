@@ -17,14 +17,17 @@ limitations under the License.
 package main
 
 import (
-	"k8s.io/apiserver/pkg/server"
 	"k8s.io/klog"
 	"sigs.k8s.io/apiserver-runtime/pkg/builder"
 
 	// +kubebuilder:scaffold:resource-imports
-	"github.com/operator-framework/catalogd/internal/version"
+
 	corev1beta1 "github.com/operator-framework/catalogd/pkg/apis/core/v1beta1"
 )
+
+// TODO: We can't properly set the version for the APIServer using the apiserver-runtime
+// package because they hardcode the version here: https://github.com/kubernetes-sigs/apiserver-runtime/blob/33c90185692756252ad3e36c5a940167d0de8f41/internal/sample-apiserver/pkg/apiserver/apiserver.go#L86-L89
+// To be able to update this we would need to create a PR to fix it OR create the apiserver w/o using the apiserver-runtime tooling
 
 func main() {
 	err := builder.APIServer.
@@ -32,10 +35,6 @@ func main() {
 		WithResource(&corev1beta1.Package{}).
 		WithResource(&corev1beta1.BundleMetadata{}).
 		WithResource(&corev1beta1.CatalogSource{}).
-		WithConfigFns(func(config *server.RecommendedConfig) *server.RecommendedConfig {
-			config.Version = version.ApiserverVersion()
-			return config
-		}).
 		Execute()
 	if err != nil {
 		klog.Fatal(err)

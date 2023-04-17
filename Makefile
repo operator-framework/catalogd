@@ -7,8 +7,8 @@ BUILD_DATE              ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 ORG                     ?= github.com/operator-framework
 REPO                    ?= $(ORG)/catalogd
 VERSION_PKG             ?= $(REPO)/internal/version
-CTRL_VERSION_FLAGS      ?= -ldflags "-X $(VERSION_PKG).gitVersion=$(GIT_VERSION)"
-SERVER_VERSION_FLAGS    ?= -ldflags "-X $(VERSION_PKG).gitVersion=$(GIT_VERSION) -X $(VERSION_PKG).gitCommit=$(GIT_COMMIT) -X $(VERSION_PKG).gitTreeState=$(GIT_TREE_STATE) -X $(VERSION_PKG).buildDate=$(BUILD_DATE)"
+CTRL_VERSION_FLAGS      ?= -ldflags="-X '$(VERSION_PKG).gitVersion=$(GIT_VERSION)'"
+SERVER_VERSION_FLAGS    ?= -ldflags "-X '$(VERSION_PKG).gitVersion=$(GIT_VERSION)' -X '$(VERSION_PKG).gitCommit=$(GIT_COMMIT)' -X '$(VERSION_PKG).gitTreeState=$(GIT_TREE_STATE)' -X '$(VERSION_PKG).buildDate=$(BUILD_DATE)'"
 GO_BUILD_TAGS           ?= upstream
 # Image URL to use all building/pushing controller image targets
 CONTROLLER_IMG          ?= quay.io/operator-framework/catalogd-controller
@@ -164,11 +164,23 @@ wait:
 ##@ Release
 
 export ENABLE_RELEASE_PIPELINE ?= false
+<<<<<<< HEAD
 export GORELEASER_ARGS ?= --snapshot --clean
 export CONTROLLER_IMAGE_REPO ?= $(CONTROLLER_IMG)
 # TODO: When the apiserver is working properly, uncomment this line:
 # export APISERVER_IMAGE_REPO ?= $(SERVER_IMG)
 export IMAGE_TAG ?= $(IMG_TAG)
+=======
+export GORELEASER_ARGS         ?= --snapshot --clean
+export CONTROLLER_IMAGE_REPO   ?= $(CONTROLLER_IMG)
+export APISERVER_IMAGE_REPO    ?= $(SERVER_IMG)
+export IMAGE_TAG               ?= $(IMG_TAG)
+export VERSION_PKG             ?= $(VERSION_PKG)
+export GIT_VERSION             ?= $(GIT_VERSION)
+export GIT_COMMIT              ?= $(GIT_COMMIT)
+export GIT_TREE_STATE          ?= $(GIT_TREE_STATE)
+export BUILD_DATE              ?= $(BUILD_DATE)
+>>>>>>> 6403277 (update goreleaser to set version flags)
 release: goreleaser ## Runs goreleaser for catalogd. By default, this will run only as a snapshot and will not publish any artifacts unless it is run with different arguments. To override the arguments, run with "GORELEASER_ARGS=...". When run as a github action from a tag, this target will publish a full release.
 	$(GORELEASER) $(GORELEASER_ARGS)
 
@@ -184,11 +196,11 @@ $(TOOLS_BIN_DIR):
 	mkdir -p $(TOOLS_BIN_DIR)
 
 
-KUSTOMIZE_VERSION ?= v5.0.1
-KIND_VERSION ?= v0.15.0
+KUSTOMIZE_VERSION        ?= v5.0.1
+KIND_VERSION             ?= v0.15.0
 CONTROLLER_TOOLS_VERSION ?= v0.10.0
-GORELEASER_VERSION ?= v1.16.2
-ENVTEST_VERSION ?= latest
+GORELEASER_VERSION       ?= v1.16.2
+ENVTEST_VERSION          ?= latest
 
 ##@ hack/tools:
 
