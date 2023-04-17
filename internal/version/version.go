@@ -20,8 +20,8 @@ func ControllerVersion() string {
 }
 
 // ApiserverVersion returns a version.Info object for the apiserver
-func ApiserverVersion() genericversion.Info {
-	return genericversion.Info{
+func ApiserverVersion() *genericversion.Info {
+	return &genericversion.Info{
 		GitVersion:   gitVersion,
 		GitCommit:    gitCommit,
 		GitTreeState: gitTreeState,

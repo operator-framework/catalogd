@@ -1,7 +1,8 @@
 # Build info
 GIT_COMMIT              ?= $(shell git rev-parse HEAD)
 GIT_VERSION             ?= $(shell git describe --tags --always --dirty)
-GIT_TREE_STATE          ?= $(shell [[ -z $(git status --porcelain) ]] && echo "clean" || echo "dirty")
+GIT_STATUS				?= $(shell git status --porcelain)
+GIT_TREE_STATE          ?= $(shell [ -z "${GIT_STATUS}" ] && echo "clean" || echo "dirty")
 BUILD_DATE              ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 ORG                     ?= github.com/operator-framework
 REPO                    ?= $(ORG)/catalogd
