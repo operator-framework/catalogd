@@ -35,7 +35,7 @@ builds:
   #   - -X {{ .Env.VERSION_PKG }}.gitVersion={{ .Env.GIT_VERSION }}
   #   - -X {{ .Env.VERSION_PKG }}.gitCommit={{ .Env.GIT_COMMIT }}
   #   - -X {{ .Env.VERSION_PKG }}.gitTreeState={{ .Env.GIT_TREE_STATE }}
-  #   - -X {{ .Env.VERSION_PKG }}.buildDate={{ .Env.BUILD_DATE }}
+  #   - -X {{ .Env.VERSION_PKG }}.commitDate={{ .Env.COMMIT_DATE }}
 dockers:
 - image_templates:
   - "{{ .Env.CONTROLLER_IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"

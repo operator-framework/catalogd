@@ -3,12 +3,12 @@ GIT_COMMIT              ?= $(shell git rev-parse HEAD)
 GIT_VERSION             ?= $(shell git describe --tags --always --dirty)
 GIT_STATUS				?= $(shell git status --porcelain)
 GIT_TREE_STATE          ?= $(shell [ -z "${GIT_STATUS}" ] && echo "clean" || echo "dirty")
-BUILD_DATE              ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+COMMIT_DATE             ?= $(shell git show -s --date=format:'%Y-%m-%dT%H:%M:%SZ' --format=%cd)
 ORG                     ?= github.com/operator-framework
 REPO                    ?= $(ORG)/catalogd
 VERSION_PKG             ?= $(REPO)/internal/version
-CTRL_VERSION_FLAGS      ?= -ldflags="-X '$(VERSION_PKG).gitVersion=$(GIT_VERSION)'"
-SERVER_VERSION_FLAGS    ?= -ldflags "-X '$(VERSION_PKG).gitVersion=$(GIT_VERSION)' -X '$(VERSION_PKG).gitCommit=$(GIT_COMMIT)' -X '$(VERSION_PKG).gitTreeState=$(GIT_TREE_STATE)' -X '$(VERSION_PKG).buildDate=$(BUILD_DATE)'"
+CTRL_LDFLAGS            ?= -ldflags="-X '$(VERSION_PKG).gitVersion=$(GIT_VERSION)'"
+SERVER_LDFLAGS          ?= -ldflags "-X '$(VERSION_PKG).gitVersion=$(GIT_VERSION)' -X '$(VERSION_PKG).gitCommit=$(GIT_COMMIT)' -X '$(VERSION_PKG).gitTreeState=$(GIT_TREE_STATE)' -X '$(VERSION_PKG).commitDate=$(COMMIT_DATE)'"
 GO_BUILD_TAGS           ?= upstream
 # Image URL to use all building/pushing controller image targets
 CONTROLLER_IMG          ?= quay.io/operator-framework/catalogd-controller
@@ -82,12 +82,12 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 
 .PHONY: build-controller
 build-controller: generate fmt vet ## Build manager binary.
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(CTRL_VERSION_FLAGS) -o bin/manager cmd/manager/main.go
+	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(CTRL_LDFLAGS) -o bin/manager cmd/manager/main.go
 
 # TODO: When the apiserver is working properly, uncomment this target:
 # .PHONY: build-server
 # build-server: fmt vet ## Build api-server binary.
-# 	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(SERVER_VERSION_FLAGS) -o bin/apiserver cmd/apiserver/main.go
+# 	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(SERVER_LDFLAGS) -o bin/apiserver cmd/apiserver/main.go
 
 .PHONY: run
 run: generate fmt vet ## Run a controller from your host.
@@ -173,7 +173,7 @@ export VERSION_PKG             ?= $(VERSION_PKG)
 export GIT_VERSION             ?= $(GIT_VERSION)
 export GIT_COMMIT              ?= $(GIT_COMMIT)
 export GIT_TREE_STATE          ?= $(GIT_TREE_STATE)
-export BUILD_DATE              ?= $(BUILD_DATE)
+export COMMIT_DATE             ?= $(COMMIT_DATE)
 release: goreleaser ## Runs goreleaser for catalogd. By default, this will run only as a snapshot and will not publish any artifacts unless it is run with different arguments. To override the arguments, run with "GORELEASER_ARGS=...". When run as a github action from a tag, this target will publish a full release.
 	$(GORELEASER) $(GORELEASER_ARGS)
 
