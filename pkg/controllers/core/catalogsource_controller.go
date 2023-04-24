@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"time"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
@@ -395,7 +396,7 @@ func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batc
 							Command: []string{
 								"cp",
 								"/bin/opm",
-								fmt.Sprintf("%s%s", mountPath, "opm"),
+								filepath.Join(mountPath, "opm"),
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{
@@ -410,7 +411,7 @@ func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batc
 							Image: cs.Spec.Image,
 							Name:  "unpacker",
 							Command: []string{
-								fmt.Sprintf("%s%s", mountPath, "opm"),
+								filepath.Join(mountPath, "opm"),
 								"render",
 								"configs/",
 							},
