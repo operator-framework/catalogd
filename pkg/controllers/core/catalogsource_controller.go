@@ -373,8 +373,8 @@ func (r *CatalogSourceReconciler) parseUnpackLogs(ctx context.Context, job *batc
 
 // unpackJob creates the manifest for an unpack Job given a CatalogSource
 func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batchv1.Job {
-	volName := "volumizer"
-	mountPath := "catalog-configs/"
+	opmVol := "opm"
+	mountPath := "opmvol/"
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "catalogd-system",
@@ -390,17 +390,16 @@ func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batc
 					RestartPolicy: v1.RestartPolicyOnFailure,
 					InitContainers: []v1.Container{
 						{
-							Image: cs.Spec.Image,
+							Image: r.OpmImage,
 							Name:  "initializer",
 							Command: []string{
 								"cp",
-								"-r",
-								"configs/", // Do all FBC catalog images stuff everything under the configs/ directory?
-								mountPath,
+								"/bin/opm",
+								fmt.Sprintf("%s%s", mountPath, "opm"),
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{
-									Name:      volName,
+									Name:      opmVol,
 									MountPath: mountPath,
 								},
 							},
@@ -408,16 +407,16 @@ func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batc
 					},
 					Containers: []v1.Container{
 						{
-							Image: r.OpmImage,
+							Image: cs.Spec.Image,
 							Name:  "unpacker",
 							Command: []string{
-								"opm",
+								fmt.Sprintf("%s%s", mountPath, "opm"),
 								"render",
-								mountPath,
+								"configs/",
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{
-									Name:      volName,
+									Name:      opmVol,
 									MountPath: mountPath,
 								},
 							},
@@ -425,7 +424,7 @@ func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batc
 					},
 					Volumes: []v1.Volume{
 						{
-							Name: volName,
+							Name: opmVol,
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
