@@ -413,7 +413,7 @@ func (r *CatalogSourceReconciler) unpackJob(cs *corev1beta1.CatalogSource) *batc
 							Command: []string{
 								filepath.Join(mountPath, "opm"),
 								"render",
-								"configs/",
+								"/configs/",
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{
