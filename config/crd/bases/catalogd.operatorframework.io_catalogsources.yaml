@@ -34,19 +34,172 @@ spec:
           spec:
             description: CatalogSourceSpec defines the desired state of CatalogSource
             properties:
-              image:
-                description: Image is the Catalog image that contains Operators' metadata
-                  in the FBC format https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
-                type: string
-              pollingInterval:
-                description: PollingInterval is used to determine the time interval
-                  between checks of the latest index image version. The image is polled
-                  to see if a new version of the image is available. If available,
-                  the latest image is pulled and the cache is updated to contain the
-                  new content.
-                type: string
+              source:
+                properties:
+                  configMaps:
+                    description: ConfigMaps is a list of config map references and
+                      their relative directory paths that represent a catalog filesystem.
+                    items:
+                      properties:
+                        configMap:
+                          description: ConfigMap is a reference to a configmap in
+                            the catalogd system namespace
+                          properties:
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        path:
+                          description: Path is the relative directory path within
+                            the catalog where the files from the configmap will be
+                            present when the catalog is unpacked.
+                          type: string
+                      required:
+                      - configMap
+                      type: object
+                    type: array
+                  git:
+                    description: Git is the git repository that backs the content
+                      of this Catalog.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      directory:
+                        description: Directory refers to the location of the catalog
+                          within the git repository. Directory is optional and if
+                          not set defaults to ./manifests.
+                        type: string
+                      ref:
+                        description: Ref configures the git source to clone a specific
+                          branch, tag, or commit from the specified repo. Ref is required,
+                          and exactly one field within Ref is required. Setting more
+                          than one field or zero fields will result in an error.
+                        properties:
+                          branch:
+                            description: Branch refers to the branch to checkout from
+                              the repository. The Branch should contain the catalog
+                              manifests in the specified directory.
+                            type: string
+                          commit:
+                            description: Commit refers to the commit to checkout from
+                              the repository. The Commit should contain the catalog
+                              manifests in the specified directory.
+                            type: string
+                          tag:
+                            description: Tag refers to the tag to checkout from the
+                              repository. The Tag should contain the catalog manifests
+                              in the specified directory.
+                            type: string
+                        type: object
+                      repository:
+                        description: Repository is a URL link to the git repository
+                          containing the catalog. Repository is required and the URL
+                          should be parsable by a standard git tool.
+                        type: string
+                    required:
+                    - ref
+                    - repository
+                    type: object
+                  http:
+                    description: HTTP is the remote location that backs the content
+                      of this Catalog.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      url:
+                        description: URL is where the catalog contents is.
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  image:
+                    description: Image is the catalog image that backs the content
+                      of this catalog.
+                    properties:
+                      pullSecret:
+                        description: ImagePullSecretName contains the name of the
+                          image pull secret in the namespace that the provisioner
+                          is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Catalog contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
+                  type:
+                    description: Type defines the kind of Catalog content being sourced.
+                    type: string
+                required:
+                - type
+                type: object
             required:
-            - image
+            - source
             type: object
           status:
             description: CatalogSourceStatus defines the observed state of CatalogSource
@@ -121,6 +274,172 @@ spec:
                   - type
                   type: object
                 type: array
+              phase:
+                type: string
+              resolvedSource:
+                properties:
+                  configMaps:
+                    description: ConfigMaps is a list of config map references and
+                      their relative directory paths that represent a catalog filesystem.
+                    items:
+                      properties:
+                        configMap:
+                          description: ConfigMap is a reference to a configmap in
+                            the catalogd system namespace
+                          properties:
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        path:
+                          description: Path is the relative directory path within
+                            the catalog where the files from the configmap will be
+                            present when the catalog is unpacked.
+                          type: string
+                      required:
+                      - configMap
+                      type: object
+                    type: array
+                  git:
+                    description: Git is the git repository that backs the content
+                      of this Catalog.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      directory:
+                        description: Directory refers to the location of the catalog
+                          within the git repository. Directory is optional and if
+                          not set defaults to ./manifests.
+                        type: string
+                      ref:
+                        description: Ref configures the git source to clone a specific
+                          branch, tag, or commit from the specified repo. Ref is required,
+                          and exactly one field within Ref is required. Setting more
+                          than one field or zero fields will result in an error.
+                        properties:
+                          branch:
+                            description: Branch refers to the branch to checkout from
+                              the repository. The Branch should contain the catalog
+                              manifests in the specified directory.
+                            type: string
+                          commit:
+                            description: Commit refers to the commit to checkout from
+                              the repository. The Commit should contain the catalog
+                              manifests in the specified directory.
+                            type: string
+                          tag:
+                            description: Tag refers to the tag to checkout from the
+                              repository. The Tag should contain the catalog manifests
+                              in the specified directory.
+                            type: string
+                        type: object
+                      repository:
+                        description: Repository is a URL link to the git repository
+                          containing the catalog. Repository is required and the URL
+                          should be parsable by a standard git tool.
+                        type: string
+                    required:
+                    - ref
+                    - repository
+                    type: object
+                  http:
+                    description: HTTP is the remote location that backs the content
+                      of this Catalog.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      url:
+                        description: URL is where the catalog contents is.
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  image:
+                    description: Image is the catalog image that backs the content
+                      of this catalog.
+                    properties:
+                      pullSecret:
+                        description: ImagePullSecretName contains the name of the
+                          image pull secret in the namespace that the provisioner
+                          is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Catalog contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
+                  type:
+                    description: Type defines the kind of Catalog content being sourced.
+                    type: string
+                required:
+                - type
+                type: object
             type: object
         type: object
     served: true

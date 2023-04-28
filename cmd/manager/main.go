@@ -21,22 +21,19 @@ import (
 	"fmt"
 	"os"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/version"
 	"github.com/operator-framework/catalogd/pkg/apis/core/v1beta1"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/profile"
-	//+kubebuilder:scaffold:imports
 )
 
 var (
@@ -56,7 +53,7 @@ func main() {
 		metricsAddr          string
 		enableLeaderElection bool
 		probeAddr            string
-		opmImage             string
+		unpackImage          string
 		profiling            bool
 		catalogdVersion      bool
 	)
@@ -65,7 +62,8 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&opmImage, "opm-image", "quay.io/operator-framework/opm:v1.26", "The opm image to use when unpacking catalog images")
+	// TODO: should we move the unpacker to some common place? Or... hear me out... should catalogd just be a rukpak provisioner?
+	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -94,11 +92,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	unpacker, err := source.NewDefaultUnpacker(mgr, "catalogd-system", unpackImage)
+	if err != nil {
+		setupLog.Error(err, "unable to create unpacker")
+		os.Exit(1)
+	}
+
 	if err = (&corecontrollers.CatalogSourceReconciler{
 		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Cfg:      mgr.GetConfig(),
-		OpmImage: opmImage,
+		Unpacker: unpacker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CatalogSource")
 		os.Exit(1)

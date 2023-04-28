@@ -17,14 +17,32 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	TypeReady = "Ready"
+// TODO: The source types, reason, etc. are all copy/pasted from the rukpak
+//   repository. We should look into whether it is possible to share these.
 
-	ReasonContentsAvailable = "ContentsAvailable"
-	ReasonUnpackError       = "UnpackError"
+type SourceType string
+
+const (
+	SourceTypeImage      SourceType = "image"
+	SourceTypeGit        SourceType = "git"
+	SourceTypeConfigMaps SourceType = "configMaps"
+	SourceTypeHTTP       SourceType = "http"
+
+	TypeUnpacked = "Unpacked"
+
+	ReasonUnpackPending    = "UnpackPending"
+	ReasonUnpacking        = "Unpacking"
+	ReasonUnpackSuccessful = "UnpackSuccessful"
+	ReasonUnpackFailed     = "UnpackFailed"
+
+	PhasePending   = "Pending"
+	PhaseUnpacking = "Unpacking"
+	PhaseFailing   = "Failing"
+	PhaseUnpacked  = "Unpacked"
 )
 
 //+kubebuilder:object:root=true
@@ -52,22 +70,99 @@ type CatalogSourceList struct {
 
 // CatalogSourceSpec defines the desired state of CatalogSource
 type CatalogSourceSpec struct {
-
-	// Image is the Catalog image that contains Operators' metadata in the FBC format
-	// https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
-	Image string `json:"image"`
-
-	// PollingInterval is used to determine the time interval between checks of the
-	// latest index image version. The image is polled to see if a new version of the
-	// image is available. If available, the latest image is pulled and the cache is
-	// updated to contain the new content.
-	PollingInterval *metav1.Duration `json:"pollingInterval,omitempty"`
+	Source CatalogSourceSource `json:"source"`
 }
 
 // CatalogSourceStatus defines the observed state of CatalogSource
 type CatalogSourceStatus struct {
 	// Conditions store the status conditions of the CatalogSource instances
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
+	ResolvedSource *CatalogSourceSource `json:"resolvedSource,omitempty"`
+	Phase          string               `json:"phase,omitempty"`
+}
+
+type CatalogSourceSource struct {
+	// Type defines the kind of Catalog content being sourced.
+	Type SourceType `json:"type"`
+	// Image is the catalog image that backs the content of this catalog.
+	Image *ImageSource `json:"image,omitempty"`
+	// Git is the git repository that backs the content of this Catalog.
+	Git *GitSource `json:"git,omitempty"`
+	// ConfigMaps is a list of config map references and their relative
+	// directory paths that represent a catalog filesystem.
+	ConfigMaps []ConfigMapSource `json:"configMaps,omitempty"`
+	//  HTTP is the remote location that backs the content of this Catalog.
+	HTTP *HTTPSource `json:"http,omitempty"`
+}
+
+type ImageSource struct {
+	// Ref contains the reference to a container image containing Catalog contents.
+	Ref string `json:"ref"`
+	// ImagePullSecretName contains the name of the image pull secret in the namespace that the provisioner is deployed.
+	ImagePullSecretName string `json:"pullSecret,omitempty"`
+}
+
+type GitSource struct {
+	// Repository is a URL link to the git repository containing the catalog.
+	// Repository is required and the URL should be parsable by a standard git tool.
+	Repository string `json:"repository"`
+	// Directory refers to the location of the catalog within the git repository.
+	// Directory is optional and if not set defaults to ./manifests.
+	Directory string `json:"directory,omitempty"`
+	// Ref configures the git source to clone a specific branch, tag, or commit
+	// from the specified repo. Ref is required, and exactly one field within Ref
+	// is required. Setting more than one field or zero fields will result in an
+	// error.
+	Ref GitRef `json:"ref"`
+	// Auth configures the authorization method if necessary.
+	Auth Authorization `json:"auth,omitempty"`
+}
+
+type ConfigMapSource struct {
+	// ConfigMap is a reference to a configmap in the catalogd system namespace
+	ConfigMap corev1.LocalObjectReference `json:"configMap"`
+	// Path is the relative directory path within the catalog where the files
+	// from the configmap will be present when the catalog is unpacked.
+	Path string `json:"path,omitempty"`
+}
+
+type HTTPSource struct {
+	// URL is where the catalog contents is.
+	URL string `json:"url"`
+	// Auth configures the authorization method if necessary.
+	Auth Authorization `json:"auth,omitempty"`
+}
+
+type ConfigMapRef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+type GitRef struct {
+	// Branch refers to the branch to checkout from the repository.
+	// The Branch should contain the catalog manifests in the specified directory.
+	Branch string `json:"branch,omitempty"`
+	// Tag refers to the tag to checkout from the repository.
+	// The Tag should contain the catalog manifests in the specified directory.
+	Tag string `json:"tag,omitempty"`
+	// Commit refers to the commit to checkout from the repository.
+	// The Commit should contain the catalog manifests in the specified directory.
+	Commit string `json:"commit,omitempty"`
+}
+
+type Authorization struct {
+	// Secret contains reference to the secret that has authorization information and is in the namespace that the provisioner is deployed.
+	// The secret is expected to contain `data.username` and `data.password` for the username and password, respectively for http(s) scheme.
+	// Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+	// For the ssh authorization of the GitSource, the secret is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts` for the ssh privatekey and the host entry in the known_hosts file respectively.
+	// Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+	Secret corev1.LocalObjectReference `json:"secret,omitempty"`
+	// InsecureSkipVerify controls whether a client verifies the server's certificate chain and host name. If InsecureSkipVerify
+	// is true, the clone operation will accept any certificate presented by the server and any host name in that
+	// certificate. In this mode, TLS is susceptible to machine-in-the-middle attacks unless custom verification is
+	// used. This should be used only for testing.
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
 func init() {
