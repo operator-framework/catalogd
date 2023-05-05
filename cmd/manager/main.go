@@ -94,7 +94,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&corecontrollers.CatalogSourceReconciler{
+	if err = (&corecontrollers.CatalogReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Cfg:      mgr.GetConfig(),
