@@ -117,16 +117,16 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *CatalogReconciler) reconcile(ctx context.Context, catalogSource *corev1beta1.Catalog) (ctrl.Result, error) {
-	job, err := r.ensureUnpackJob(ctx, catalogSource)
+func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *corev1beta1.Catalog) (ctrl.Result, error) {
+	job, err := r.ensureUnpackJob(ctx, catalog)
 	if err != nil {
-		updateStatusError(catalogSource, err)
+		updateStatusError(catalog, err)
 		return ctrl.Result{}, fmt.Errorf("ensuring unpack job: %v", err)
 	}
 
 	complete, err := r.checkUnpackJobComplete(ctx, job)
 	if err != nil {
-		updateStatusError(catalogSource, err)
+		updateStatusError(catalog, err)
 		return ctrl.Result{}, fmt.Errorf("ensuring unpack job completed: %v", err)
 	}
 	if !complete {
@@ -135,38 +135,38 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalogSource *corev1
 
 	declCfg, err := r.parseUnpackLogs(ctx, job)
 	if err != nil {
-		updateStatusError(catalogSource, err)
+		updateStatusError(catalog, err)
 		return ctrl.Result{}, err
 	}
 
-	if err := r.createPackages(ctx, declCfg, catalogSource); err != nil {
-		updateStatusError(catalogSource, err)
+	if err := r.createPackages(ctx, declCfg, catalog); err != nil {
+		updateStatusError(catalog, err)
 		return ctrl.Result{}, err
 	}
 
-	if err := r.createBundleMetadata(ctx, declCfg, catalogSource); err != nil {
-		updateStatusError(catalogSource, err)
+	if err := r.createBundleMetadata(ctx, declCfg, catalog); err != nil {
+		updateStatusError(catalog, err)
 		return ctrl.Result{}, err
 	}
 
 	// update Catalog status as "Ready" since at this point
 	// all catalog content should be available on cluster
-	updateStatusReady(catalogSource)
+	updateStatusReady(catalog)
 	return ctrl.Result{}, nil
 }
 
 // ensureUnpackJob will ensure that an unpack job has been created for the given
 // Catalog. It will return the unpack job if successful (either the Job already
 // exists or one was successfully created) or an error if it is unsuccessful
-func (r *CatalogReconciler) ensureUnpackJob(ctx context.Context, catalogSource *corev1beta1.Catalog) (*batchv1.Job, error) {
+func (r *CatalogReconciler) ensureUnpackJob(ctx context.Context, catalog *corev1beta1.Catalog) (*batchv1.Job, error) {
 	// Create the unpack Job manifest for the given Catalog
-	job := r.unpackJob(catalogSource)
+	job := r.unpackJob(catalog)
 
 	// If the Job already exists just return it. If it doesn't then attempt to create it
 	err := r.Client.Get(ctx, client.ObjectKeyFromObject(job), job)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if err = r.createUnpackJob(ctx, catalogSource); err != nil {
+			if err = r.createUnpackJob(ctx, catalog); err != nil {
 				return nil, err
 			}
 			return job, nil
@@ -201,8 +201,8 @@ func (r *CatalogReconciler) checkUnpackJobComplete(ctx context.Context, job *bat
 // to have the "Ready" condition with a status of "True" and a Reason
 // of "ContentsAvailable". This function is used to signal that a Catalog
 // has been successfully unpacked and all catalog contents are available on cluster
-func updateStatusReady(catalogSource *corev1beta1.Catalog) {
-	meta.SetStatusCondition(&catalogSource.Status.Conditions, metav1.Condition{
+func updateStatusReady(catalog *corev1beta1.Catalog) {
+	meta.SetStatusCondition(&catalog.Status.Conditions, metav1.Condition{
 		Type:    corev1beta1.TypeReady,
 		Reason:  corev1beta1.ReasonContentsAvailable,
 		Status:  metav1.ConditionTrue,
@@ -214,8 +214,8 @@ func updateStatusReady(catalogSource *corev1beta1.Catalog) {
 // to have the condition Type "Ready" with a Status of "False" and a Reason
 // of "UnpackError". This function is used to signal that a Catalog
 // is in an error state and that catalog contents are not available on cluster
-func updateStatusError(catalogSource *corev1beta1.Catalog, err error) {
-	meta.SetStatusCondition(&catalogSource.Status.Conditions, metav1.Condition{
+func updateStatusError(catalog *corev1beta1.Catalog, err error) {
+	meta.SetStatusCondition(&catalog.Status.Conditions, metav1.Condition{
 		Type:    corev1beta1.TypeReady,
 		Status:  metav1.ConditionFalse,
 		Reason:  corev1beta1.ReasonUnpackError,
@@ -226,14 +226,14 @@ func updateStatusError(catalogSource *corev1beta1.Catalog, err error) {
 // createBundleMetadata will create a `BundleMetadata` resource for each
 // "olm.bundle" object that exists for the given catalog contents. Returns an
 // error if any are encountered.
-func (r *CatalogReconciler) createBundleMetadata(ctx context.Context, declCfg *declcfg.DeclarativeConfig, catalogSource *corev1beta1.Catalog) error {
+func (r *CatalogReconciler) createBundleMetadata(ctx context.Context, declCfg *declcfg.DeclarativeConfig, catalog *corev1beta1.Catalog) error {
 	for _, bundle := range declCfg.Bundles {
 		bundleMeta := corev1beta1.BundleMetadata{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: bundle.Name,
 			},
 			Spec: corev1beta1.BundleMetadataSpec{
-				CatalogSource: catalogSource.Name,
+				CatalogSource: catalog.Name,
 				Package:       bundle.Package,
 				Image:         bundle.Image,
 				Properties:    []corev1beta1.Property{},
@@ -260,7 +260,7 @@ func (r *CatalogReconciler) createBundleMetadata(ctx context.Context, declCfg *d
 			})
 		}
 
-		ctrlutil.SetOwnerReference(catalogSource, &bundleMeta, r.Scheme)
+		ctrlutil.SetOwnerReference(catalog, &bundleMeta, r.Scheme)
 
 		if err := r.Client.Create(ctx, &bundleMeta); err != nil {
 			return fmt.Errorf("creating bundlemetadata %q: %w", bundleMeta.Name, err)
@@ -274,7 +274,7 @@ func (r *CatalogReconciler) createBundleMetadata(ctx context.Context, declCfg *d
 // "olm.package" object that exists for the given catalog contents.
 // `Package.Spec.Channels` is populated by filtering all "olm.channel" objects
 // where the "packageName" == `Package.Name`. Returns an error if any are encountered.
-func (r *CatalogReconciler) createPackages(ctx context.Context, declCfg *declcfg.DeclarativeConfig, catalogSource *corev1beta1.Catalog) error {
+func (r *CatalogReconciler) createPackages(ctx context.Context, declCfg *declcfg.DeclarativeConfig, catalog *corev1beta1.Catalog) error {
 	for _, pkg := range declCfg.Packages {
 		pack := corev1beta1.Package{
 			ObjectMeta: metav1.ObjectMeta{
@@ -286,7 +286,7 @@ func (r *CatalogReconciler) createPackages(ctx context.Context, declCfg *declcfg
 				Name: pkg.Name,
 			},
 			Spec: corev1beta1.PackageSpec{
-				CatalogSource:  catalogSource.Name,
+				CatalogSource:  catalog.Name,
 				DefaultChannel: pkg.DefaultChannel,
 				Channels:       []corev1beta1.PackageChannel{},
 				Description:    pkg.Description,
@@ -311,7 +311,7 @@ func (r *CatalogReconciler) createPackages(ctx context.Context, declCfg *declcfg
 			}
 		}
 
-		ctrlutil.SetOwnerReference(catalogSource, &pack, r.Scheme)
+		ctrlutil.SetOwnerReference(catalog, &pack, r.Scheme)
 
 		if err := r.Client.Create(ctx, &pack); err != nil {
 			return fmt.Errorf("creating package %q: %w", pack.Name, err)

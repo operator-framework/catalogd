@@ -100,7 +100,7 @@ func main() {
 		Cfg:      mgr.GetConfig(),
 		OpmImage: opmImage,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "CatalogSource")
+		setupLog.Error(err, "unable to create controller", "controller", "Catalog")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
