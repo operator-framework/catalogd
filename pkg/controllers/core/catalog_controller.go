@@ -128,7 +128,6 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *corev1beta1.
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		// TODO(everettraven): Update this to use the new MetaWalkFS function in operator-registry
 		fbc, err := declcfg.LoadFS(unpackResult.FS)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
@@ -234,7 +233,7 @@ func (r *CatalogReconciler) createBundleMetadata(ctx context.Context, declCfg *d
 
 		ctrlutil.SetOwnerReference(catalog, &bundleMeta, r.Client.Scheme())
 
-		if err := r.Client.Create(ctx, &bundleMeta); err != nil {
+		if err := r.Client.Create(ctx, &bundleMeta); client.IgnoreAlreadyExists(err) != nil {
 			return fmt.Errorf("creating bundlemetadata %q: %w", bundleMeta.Name, err)
 		}
 	}
@@ -285,7 +284,8 @@ func (r *CatalogReconciler) createPackages(ctx context.Context, declCfg *declcfg
 
 		ctrlutil.SetOwnerReference(catalog, &pack, r.Client.Scheme())
 
-		if err := r.Client.Create(ctx, &pack); err != nil {
+		if err := r.Client.Create(ctx, &pack); client.IgnoreAlreadyExists(err) != nil {
+
 			return fmt.Errorf("creating package %q: %w", pack.Name, err)
 		}
 	}

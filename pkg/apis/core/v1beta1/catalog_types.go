@@ -26,10 +26,7 @@ import (
 type SourceType string
 
 const (
-	SourceTypeImage      SourceType = "image"
-	SourceTypeGit        SourceType = "git"
-	SourceTypeConfigMaps SourceType = "configMaps"
-	SourceTypeHTTP       SourceType = "http"
+	SourceTypeImage SourceType = "image"
 
 	TypeUnpacked = "Unpacked"
 
