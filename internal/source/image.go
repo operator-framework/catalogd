@@ -207,7 +207,7 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Resul
 		Image: &catalogdv1beta1.ImageSource{Ref: digest},
 	}
 
-	message := generateMessage("image")
+	message := fmt.Sprintf("successfully unpacked the catalog image %q", digest)
 
 	return &Result{FS: catalogFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
