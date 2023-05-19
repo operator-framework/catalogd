@@ -44,8 +44,7 @@ spec:
                     properties:
                       pullSecret:
                         description: ImagePullSecretName contains the name of the
-                          image pull secret in the namespace that the provisioner
-                          is deployed.
+                          image pull secret in the namespace that catalogd is deployed.
                         type: string
                       ref:
                         description: Ref contains the reference to a container image
@@ -148,8 +147,7 @@ spec:
                     properties:
                       pullSecret:
                         description: ImagePullSecretName contains the name of the
-                          image pull secret in the namespace that the provisioner
-                          is deployed.
+                          image pull secret in the namespace that catalogd is deployed.
                         type: string
                       ref:
                         description: Ref contains the reference to a container image

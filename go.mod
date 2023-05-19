@@ -7,7 +7,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.6.0
 	github.com/onsi/gomega v1.24.1
 	github.com/operator-framework/operator-registry v1.26.3
-	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	k8s.io/api v0.26.0
 	k8s.io/apimachinery v0.26.0
 	k8s.io/client-go v0.26.0

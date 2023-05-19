@@ -231,9 +231,11 @@ func (r *CatalogReconciler) createBundleMetadata(ctx context.Context, declCfg *d
 			})
 		}
 
-		ctrlutil.SetOwnerReference(catalog, &bundleMeta, r.Client.Scheme())
+		if err := ctrlutil.SetOwnerReference(catalog, &bundleMeta, r.Client.Scheme()); err != nil {
+			return fmt.Errorf("setting ownerreference on bundlemetadata %q: %w", bundleMeta.Name, err)
+		}
 
-		if err := r.Client.Create(ctx, &bundleMeta); client.IgnoreAlreadyExists(err) != nil {
+		if err := r.Client.Create(ctx, &bundleMeta); err != nil {
 			return fmt.Errorf("creating bundlemetadata %q: %w", bundleMeta.Name, err)
 		}
 	}
@@ -282,10 +284,11 @@ func (r *CatalogReconciler) createPackages(ctx context.Context, declCfg *declcfg
 			}
 		}
 
-		ctrlutil.SetOwnerReference(catalog, &pack, r.Client.Scheme())
+		if err := ctrlutil.SetOwnerReference(catalog, &pack, r.Client.Scheme()); err != nil {
+			return fmt.Errorf("setting ownerreference on package %q: %w", pack.Name, err)
+		}
 
-		if err := r.Client.Create(ctx, &pack); client.IgnoreAlreadyExists(err) != nil {
-
+		if err := r.Client.Create(ctx, &pack); err != nil {
 			return fmt.Errorf("creating package %q: %w", pack.Name, err)
 		}
 	}

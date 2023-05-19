@@ -60,6 +60,7 @@ func main() {
 		unpackImage          string
 		profiling            bool
 		catalogdVersion      bool
+		sysNs                string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -68,6 +69,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	// TODO: should we move the unpacker to some common place? Or... hear me out... should catalogd just be a rukpak provisioner?
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
+	flag.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace to use when unpacking catalog images")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -96,7 +98,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(mgr, "catalogd-system", unpackImage)
+	unpacker, err := source.NewDefaultUnpacker(mgr, sysNs, unpackImage)
 	if err != nil {
 		setupLog.Error(err, "unable to create unpacker")
 		os.Exit(1)

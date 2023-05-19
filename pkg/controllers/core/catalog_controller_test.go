@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"testing/fstest"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/operator-framework/catalogd/internal/source"
 	catalogdv1beta1 "github.com/operator-framework/catalogd/pkg/apis/core/v1beta1"
 	"github.com/operator-framework/catalogd/pkg/controllers/core"
-	"github.com/psanford/memfs"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -220,10 +220,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 					testChannel                 = fmt.Sprintf(testChannelTemplate, testPackageName, testChannelName, testBundleName)
 				)
 				BeforeEach(func() {
-					filesys := memfs.New()
-					Expect(filesys.WriteFile("bundle.yaml", []byte(testBundle), os.ModePerm)).To(Succeed())
-					Expect(filesys.WriteFile("package.yaml", []byte(testPackage), os.ModePerm)).To(Succeed())
-					Expect(filesys.WriteFile("channel.yaml", []byte(testChannel), os.ModePerm)).To(Succeed())
+					filesys := &fstest.MapFS{
+						"bundle.yaml":  &fstest.MapFile{Data: []byte(testBundle), Mode: os.ModePerm},
+						"package.yaml": &fstest.MapFile{Data: []byte(testPackage), Mode: os.ModePerm},
+						"channel.yaml": &fstest.MapFile{Data: []byte(testChannel), Mode: os.ModePerm},
+					}
 
 					mockSource.shouldError = false
 					mockSource.result = &source.Result{

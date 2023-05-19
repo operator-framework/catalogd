@@ -92,7 +92,7 @@ type CatalogSource struct {
 type ImageSource struct {
 	// Ref contains the reference to a container image containing Catalog contents.
 	Ref string `json:"ref"`
-	// ImagePullSecretName contains the name of the image pull secret in the namespace that the provisioner is deployed.
+	// ImagePullSecretName contains the name of the image pull secret in the namespace that catalogd is deployed.
 	ImagePullSecretName string `json:"pullSecret,omitempty"`
 }
 
