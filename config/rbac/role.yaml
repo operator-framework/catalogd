@@ -4,15 +4,23 @@ kind: ClusterRole
 metadata:
   name: manager-role
 rules:
+- nonResourceURLs:
+  - /bundles/*
+  - /uploads/*
+  verbs:
+  - get
 - apiGroups:
-  - batch
+  - authentication.k8s.io
   resources:
-  - jobs
+  - tokenreviews
   verbs:
   - create
-  - get
-  - list
-  - watch
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
 - apiGroups:
   - catalogd.operatorframework.io
   resources:
@@ -94,10 +102,20 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
-  - get
+  - create
+  - delete
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
@@ -105,5 +123,26 @@ rules:
   - pods/log
   verbs:
   - get
+- apiGroups:
+  - core.rukpak.io
+  resources:
+  - bundles
+  verbs:
+  - create
   - list
+  - patch
+  - update
   - watch
+- apiGroups:
+  - core.rukpak.io
+  resources:
+  - bundles/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - core.rukpak.io
+  resources:
+  - bundles/status
+  verbs:
+  - patch
+  - update

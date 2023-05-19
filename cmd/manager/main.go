@@ -19,10 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +38,13 @@ import (
 	"github.com/operator-framework/catalogd/pkg/apis/core/v1beta1"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/profile"
+	"github.com/operator-framework/catalogd/pkg/provisioner"
+	"github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/finalizer"
+	"github.com/operator-framework/rukpak/pkg/provisioner/bundle"
+	"github.com/operator-framework/rukpak/pkg/source"
+	"github.com/operator-framework/rukpak/pkg/storage"
+	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -48,6 +57,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(v1beta1.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -104,6 +114,80 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	// TODO: Investigate a storage issue:
+	// 	2023-05-19T21:08:41Z	ERROR	Reconciler error	{"controller": "controller.bundle.catalogd-bundle-provisioner", "controllerGroup": "core.rukpak.io", "controllerKind": "Bundle", "Bundle": {"name":"catalog-sample-bundle"}, "namespace": "", "name": "catalog-sample-bundle", "reconcileID": "421a40cf-86e2-4df4-a677-4ed0ff8da111", "error": "persist bundle content: open /var/cache/bundle/catalog-sample-bundle.tgz: no such file or directory"}
+	// sigs.k8s.io/controller-runtime/pkg/internal/controller.(*Controller).reconcileHandler
+	// 	/home/bpalmer/github/catalogd/vendor/sigs.k8s.io/controller-runtime/pkg/internal/controller/controller.go:329
+	// sigs.k8s.io/controller-runtime/pkg/internal/controller.(*Controller).processNextWorkItem
+	// 	/home/bpalmer/github/catalogd/vendor/sigs.k8s.io/controller-runtime/pkg/internal/controller/controller.go:274
+	// sigs.k8s.io/controller-runtime/pkg/internal/controller.(*Controller).Start.func2.2
+	// 	/home/bpalmer/github/catalogd/vendor/sigs.k8s.io/controller-runtime/pkg/internal/controller/controller.go:235
+
+	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", "http://localhost:8080"))
+	if err != nil {
+		setupLog.Error(err, "unable to parse bundle content server URL")
+		os.Exit(1)
+	}
+
+	localStorage := &storage.LocalDirectory{
+		RootDirectory: "/var/cache/bundle",
+		URL:           *storageURL,
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "unable to create a kube client")
+		os.Exit(1)
+	}
+	unpacker := source.NewUnpacker(map[v1alpha1.SourceType]source.Unpacker{
+		v1alpha1.SourceTypeImage: &source.Image{
+			Client:       mgr.GetClient(),
+			KubeClient:   kubeClient,
+			PodNamespace: "catalogd-system",
+			UnpackImage:  "quay.io/operator-framework/rukpak:v0.12.0",
+			BundleDir:    "/configs",
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to set up unpacker")
+		os.Exit(1)
+	}
+
+	httpLoader := storage.NewHTTP(
+		storage.WithBearerToken(mgr.GetConfig().BearerToken),
+	)
+	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
+
+	// This finalizer logic MUST be co-located with this main
+	// controller logic because it deals with cleaning up bundle data
+	// from the bundle cache when the bundles are deleted. The
+	// consequence is that this process MUST remain running in order
+	// to process DELETE events for bundles that include this finalizer.
+	// If this process is NOT running, deletion of such bundles will
+	// hang until $something removes the finalizer.
+	//
+	// If the bundle cache is backed by a storage implementation that allows
+	// multiple writers from different processes (e.g. a ReadWriteMany volume or
+	// an S3 bucket), we could have separate processes for finalizer handling
+	// and the primary provisioner controllers. For now, the assumption is
+	// that we are not using such an implementation.
+	bundleFinalizers := crfinalizer.NewFinalizers()
+	if err := bundleFinalizers.Register(finalizer.DeleteCachedBundleKey, &finalizer.DeleteCachedBundle{Storage: bundleStorage}); err != nil {
+		setupLog.Error(err, "unable to register finalizer", "finalizerKey", finalizer.DeleteCachedBundleKey)
+		os.Exit(1)
+	}
+	// Setup our custom rukpak provisioner
+	if err = bundle.SetupProvisioner(mgr, mgr.GetCache(), "catalogd-system",
+		bundle.WithProvisionerID("catalogd-bundle-provisioner"),
+		bundle.WithUnpacker(unpacker),
+		bundle.WithStorage(bundleStorage),
+		bundle.WithHandler(&provisioner.CatalogdBundleHandler{Client: mgr.GetClient()}),
+		bundle.WithFinalizers(bundleFinalizers),
+	); err != nil {
+		setupLog.Error(err, "unable to set up catalogd bundle provisioner")
+		os.Exit(1)
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
