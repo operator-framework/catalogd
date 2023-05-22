@@ -242,6 +242,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 						State:          source.StateUnpacked,
 						FS:             filesys,
 					}
+
+					// reconcile
+					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
+					Expect(res).To(Equal(ctrl.Result{}))
+					Expect(err).ToNot(HaveOccurred())
 				})
 
 				AfterEach(func() {
@@ -262,11 +267,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
 				})
 
-				It("should update status to reflect the unpacked state and create the proper BundleMetadata and Package resources", func() {
-					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
-					Expect(res).To(Equal(ctrl.Result{}))
-					Expect(err).ToNot(HaveOccurred())
-
+				It("should set unpacking status to 'unpacked'", func() {
 					// get the catalog and ensure status is set properly
 					cat := &catalogdv1beta1.Catalog{}
 					Expect(cl.Get(ctx, cKey, cat)).ToNot(HaveOccurred())
@@ -276,7 +277,9 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(cond).ToNot(BeNil())
 					Expect(cond.Reason).To(Equal(catalogdv1beta1.ReasonUnpackSuccessful))
 					Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+				})
 
+				It("should create BundleMetadata resources", func() {
 					// validate bundlemetadata resources
 					bundlemetadatas := &catalogdv1beta1.BundleMetadataList{}
 					Expect(cl.List(ctx, bundlemetadatas)).To(Succeed())
@@ -290,7 +293,9 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(testBundleRelatedImageName))
 					Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(testBundleRelatedImageImage))
 					Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
+				})
 
+				It("should create Package resources", func() {
 					// validate package resources
 					packages := &catalogdv1beta1.PackageList{}
 					Expect(cl.List(ctx, packages)).To(Succeed())
