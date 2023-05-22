@@ -166,9 +166,9 @@ func (i *Image) getDesiredPodApplyConfig(catalog *catalogdv1beta1.Catalog) *appl
 			),
 		)
 
-	if catalog.Spec.Source.Image.ImagePullSecretName != "" {
+	if catalog.Spec.Source.Image.PullSecret != "" {
 		podApply.Spec = podApply.Spec.WithImagePullSecrets(
-			applyconfigurationcorev1.LocalObjectReference().WithName(catalog.Spec.Source.Image.ImagePullSecretName),
+			applyconfigurationcorev1.LocalObjectReference().WithName(catalog.Spec.Source.Image.PullSecret),
 		)
 	}
 	return podApply

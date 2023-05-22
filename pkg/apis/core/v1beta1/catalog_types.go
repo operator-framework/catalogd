@@ -92,8 +92,8 @@ type CatalogSource struct {
 type ImageSource struct {
 	// Ref contains the reference to a container image containing Catalog contents.
 	Ref string `json:"ref"`
-	// ImagePullSecretName contains the name of the image pull secret in the namespace that catalogd is deployed.
-	ImagePullSecretName string `json:"pullSecret,omitempty"`
+	// PullSecret contains the name of the image pull secret in the namespace that catalogd is deployed.
+	PullSecret string `json:"pullSecret,omitempty"`
 }
 
 func init() {
