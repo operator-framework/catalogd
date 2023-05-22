@@ -102,6 +102,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 				Expect(cl.Create(ctx, catalog)).NotTo(HaveOccurred())
 			})
 
+			AfterEach(func() {
+				By("tearing down cluster state")
+				Expect(cl.Delete(ctx, catalog)).NotTo(HaveOccurred())
+			})
+
 			It("should set unpacking status to failed and return an error", func() {
 				res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
 				Expect(res).To(Equal(ctrl.Result{}))
@@ -134,6 +139,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 					},
 				}
 				Expect(cl.Create(ctx, catalog)).To(Succeed())
+			})
+
+			AfterEach(func() {
+				By("tearing down cluster state")
+				Expect(cl.Delete(ctx, catalog)).NotTo(HaveOccurred())
 			})
 
 			When("unpacker returns source.Result with state == 'Pending'", func() {
@@ -232,6 +242,24 @@ var _ = Describe("Catalogd Controller Test", func() {
 						State:          source.StateUnpacked,
 						FS:             filesys,
 					}
+				})
+
+				AfterEach(func() {
+					// clean up package
+					pkg := &catalogdv1beta1.Package{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: testPackageName,
+						},
+					}
+					Expect(cl.Delete(ctx, pkg)).NotTo(HaveOccurred())
+
+					// clean up bundlemetadata
+					bm := &catalogdv1beta1.BundleMetadata{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: testBundleName,
+						},
+					}
+					Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
 				})
 
 				It("should update status to reflect the unpacked state and create the proper BundleMetadata and Package resources", func() {
