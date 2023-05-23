@@ -31,11 +31,11 @@ type Image struct {
 	UnpackImage  string
 }
 
-const imageBundleUnpackContainerName = "catalog"
+const imageCatalogUnpackContainerName = "catalog"
 
 func (i *Image) Unpack(ctx context.Context, catalog *catalogdv1beta1.Catalog) (*Result, error) {
 	if catalog.Spec.Source.Type != catalogdv1beta1.SourceTypeImage {
-		return nil, fmt.Errorf("catalog source type %q not supported", catalog.Spec.Source.Type)
+		panic(fmt.Sprintf("source type %q is unable to handle specified catalog source type %q", catalogdv1beta1.SourceTypeImage, catalog.Spec.Source.Type))
 	}
 	if catalog.Spec.Source.Image == nil {
 		return nil, fmt.Errorf("catalog source image configuration is unset")
@@ -145,7 +145,7 @@ func (i *Image) getDesiredPodApplyConfig(catalog *catalogdv1beta1.Catalog) *appl
 				WithSecurityContext(containerSecurityContext),
 			).
 			WithContainers(applyconfigurationcorev1.Container().
-				WithName(imageBundleUnpackContainerName).
+				WithName(imageCatalogUnpackContainerName).
 				WithImage(catalog.Spec.Source.Image.Ref).
 				WithCommand("/util/bin/unpack", "--bundle-dir", "/configs").
 				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
@@ -192,12 +192,12 @@ func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Result, error) {
-	catalogFS, err := i.getBundleContents(ctx, pod)
+	catalogFS, err := i.getCatalogContents(ctx, pod)
 	if err != nil {
 		return nil, fmt.Errorf("get catalog contents: %v", err)
 	}
 
-	digest, err := i.getBundleImageDigest(pod)
+	digest, err := i.getCatalogImageDigest(pod)
 	if err != nil {
 		return nil, fmt.Errorf("get catalog image digest: %v", err)
 	}
@@ -212,7 +212,7 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Resul
 	return &Result{FS: catalogFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
-func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
+func (i *Image) getCatalogContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
 	catalogData, err := i.getPodLogs(ctx, pod)
 	if err != nil {
 		return nil, fmt.Errorf("get catalog contents: %v", err)
@@ -232,9 +232,9 @@ func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, 
 	return tarfs.New(gzr)
 }
 
-func (i *Image) getBundleImageDigest(pod *corev1.Pod) (string, error) {
+func (i *Image) getCatalogImageDigest(pod *corev1.Pod) (string, error) {
 	for _, ps := range pod.Status.ContainerStatuses {
-		if ps.Name == imageBundleUnpackContainerName && ps.ImageID != "" {
+		if ps.Name == imageCatalogUnpackContainerName && ps.ImageID != "" {
 			return ps.ImageID, nil
 		}
 	}

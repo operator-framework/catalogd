@@ -69,7 +69,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	// TODO: should we move the unpacker to some common place? Or... hear me out... should catalogd just be a rukpak provisioner?
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
-	flag.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace to use when unpacking catalog images")
+	flag.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace catalogd uses for internal state, configuration, and workloads")
 	opts := zap.Options{
 		Development: true,
 	}
