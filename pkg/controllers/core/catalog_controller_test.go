@@ -325,7 +325,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 // and Package resources created by the Catalog controller have the appropriate values.
 // Having the parameterized fields allows us to easily change the values that are used in
 // the tests by changing them in one place as opposed to manually changing many string literals
-// throughout the code. To see the usage of these templates in the tests, see lines 228-230 in this file.
+// throughout the code.
 const testBundleTemplate = `---
 image: %s
 name: %s
