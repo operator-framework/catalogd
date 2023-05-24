@@ -315,6 +315,17 @@ var _ = Describe("Catalogd Controller Test", func() {
 	})
 })
 
+// The below string templates each represent a YAML file consisting
+// of file-based catalog objects to build a minimal catalog consisting of
+// one package, with one channel, and one bundle in that channel.
+// To learn more about File-Based Catalogs and the different objects, view the
+// documentation at https://olm.operatorframework.io/docs/reference/file-based-catalogs/.
+// The reasoning behind having these as a template is to parameterize different
+// fields to use custom values during testing and verifying to ensure that the BundleMetadata
+// and Package resources created by the Catalog controller have the appropriate values.
+// Having the parameterized fields allows us to easily change the values that are used in
+// the tests by changing them in one place as opposed to manually changing many string literals
+// throughout the code. To see the usage of these templates in the tests, see lines 228-230 in this file.
 const testBundleTemplate = `---
 image: %s
 name: %s
