@@ -1,6 +1,6 @@
 # catalogd
 
-This repository is a prototype for a custom apiserver that uses a (dedicated ectd instance)[configs/etcd] to serve [FBC](https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs) content on cluster in a Kubernetes native way on cluster.
+This repository is a prototype for a custom apiserver that uses a [dedicated ectd instance](config/etcd) to serve [FBC](https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs) content on cluster in a Kubernetes native way on cluster.
 
 
 ## Enhacement 
