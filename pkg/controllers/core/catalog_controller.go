@@ -19,6 +19,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"io/fs"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 	corev1 "k8s.io/api/core/v1"
@@ -31,11 +32,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
+	corev1beta1 "github.com/operator-framework/catalogd/pkg/apis/core/v1beta1"
 )
 
 // TODO (everettraven): Add unit tests for the CatalogReconciler
@@ -136,17 +139,22 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		fbc, err := declcfg.LoadFS(unpackResult.FS)
-		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
-		}
+		// (todo): walkmetaFS function
+		// fbc, err := declcfg.LoadFS(unpackResult.FS)
+		// if err != nil {
+		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
+		// }
 
-		if err := r.syncPackages(ctx, fbc, catalog); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create package objects: %v", err))
-		}
+		// if err := r.syncPackages(ctx, fbc, catalog); err != nil {
+		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create package objects: %v", err))
+		// }
 
-		if err := r.syncBundleMetadata(ctx, fbc, catalog); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
+		// if err := r.syncBundleMetadata(ctx, fbc, catalog); err != nil {
+		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
+		// }
+
+		if err = r.createCatalogMetadata(ctx, unpackResult.FS /*fbc*/, catalog); err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create catalog metadata objects: %v", err))
 		}
 
 		updateStatusUnpacked(&catalog.Status, unpackResult)
@@ -364,6 +372,51 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 		if err := r.Client.Patch(ctx, newPkg, client.Apply, &client.PatchOptions{Force: pointer.Bool(true), FieldManager: "catalog-controller"}); err != nil {
 			return fmt.Errorf("applying package %q: %w", newPkg.Name, err)
 		}
+	}
+	return nil
+}
+
+func (r *CatalogReconciler) createCatalogMetadata(ctx context.Context, fs fs.FS /*declCfg *declcfg.DeclarativeConfig*/, catalog *corev1beta1.Catalog) error {
+	var catalogMetadata *catalogv1beta1.CatalogMetadata
+	var catalogMetadataObjs []*catalogv1beta1.CatalogMetadata
+	err := declcfg.WalkMetasFS(fs, func(path string, meta *declcfg.Meta, err error) error {
+		if err != nil {
+			return fmt.Errorf("unable to parse catalog content in the path: %w", err)
+		}
+
+		// if err := json.Unmarshal(declCfg, &meta.Blob); err != nil {
+		// 	return fmt.Errorf("parse declarative config packages: %v", err)
+		// }
+
+		catalogMetadata = &catalogv1beta1.CatalogMetadata{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: meta.Package,
+			},
+			Spec: catalogv1beta1.CatalogMetadataSpec{
+				Catalog: corev1.LocalObjectReference{Name: catalog.Name},
+				Name:    meta.Name,
+				Schema:  meta.Schema,
+				Package: meta.Package,
+				Content: meta.Blob,
+			},
+		}
+
+		catalogMetadataObjs = append(catalogMetadataObjs, catalogMetadata)
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("unable to parse declarative config into CatalogMetadata API: %w", err)
+	}
+
+	for _, catalogMetadata := range catalogMetadataObjs {
+		if err := ctrlutil.SetOwnerReference(catalog, catalogMetadata, r.Client.Scheme()); err != nil {
+			return fmt.Errorf("setting ownerreference on CatalogMetadata %q: %w", catalogMetadata.Name, err)
+		}
+
+		if err := r.Client.Create(ctx, catalogMetadata); err != nil {
+			return fmt.Errorf("creating catalogMetadata %q: %w", catalogMetadata.Name, err)
+		}
+
 	}
 	return nil
 }
