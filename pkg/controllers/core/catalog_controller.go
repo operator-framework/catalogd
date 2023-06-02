@@ -153,7 +153,7 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
 		// }
 
-		if err = r.createCatalogMetadata(ctx, unpackResult.FS /*fbc*/, catalog); err != nil {
+		if err = r.syncCatalogMetadata(ctx, unpackResult.FS, catalog); err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create catalog metadata objects: %v", err))
 		}
 
@@ -376,21 +376,26 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 	return nil
 }
 
-func (r *CatalogReconciler) createCatalogMetadata(ctx context.Context, fs fs.FS /*declCfg *declcfg.DeclarativeConfig*/, catalog *corev1beta1.Catalog) error {
-	var catalogMetadata *catalogv1beta1.CatalogMetadata
-	var catalogMetadataObjs []*catalogv1beta1.CatalogMetadata
+func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, catalog *corev1beta1.Catalog) error {
+	newCatalogMetadataObjs := map[string]*catalogv1beta1.CatalogMetadata{}
+
 	err := declcfg.WalkMetasFS(fs, func(path string, meta *declcfg.Meta, err error) error {
 		if err != nil {
 			return fmt.Errorf("unable to parse catalog content in the path: %w", err)
 		}
 
-		// if err := json.Unmarshal(declCfg, &meta.Blob); err != nil {
-		// 	return fmt.Errorf("parse declarative config packages: %v", err)
-		// }
-
-		catalogMetadata = &catalogv1beta1.CatalogMetadata{
+		// (todo): look into doing a deepcopy, as this will get overridden
+		// (add labels): filter catalogmetadata based on the labels; @joe's prototype
+		catalogMetadata := &catalogv1beta1.CatalogMetadata{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: meta.Package,
+				Name: meta.Name,
+				Labels: map[string]string{
+					"catalogd.operatorframework.io/catalog":       catalog.Name,
+					"catalogd.operatorframework.io/schema":        meta.Schema,
+					"catalogd.operatorframework.io/package":       meta.Package,
+					"catalogd.operatorframework.io/name":          meta.Name,
+					"catalogd.operatorframework.io/packageOrName": meta.Name,
+				},
 			},
 			Spec: catalogv1beta1.CatalogMetadataSpec{
 				Catalog: corev1.LocalObjectReference{Name: catalog.Name},
@@ -401,22 +406,39 @@ func (r *CatalogReconciler) createCatalogMetadata(ctx context.Context, fs fs.FS 
 			},
 		}
 
-		catalogMetadataObjs = append(catalogMetadataObjs, catalogMetadata)
+		if err := ctrlutil.SetOwnerReference(catalog, catalogMetadata, r.Client.Scheme()); err != nil {
+			return fmt.Errorf("setting ownerreference on CatalogMetadata %q: %w", catalogMetadata.Name, err)
+		}
+
+		// create a new map entry with catalog metadata name as the key and value to be the actual catalogMetadata
+		// populate the map with the existing entry
+		newCatalogMetadataObjs[catalogMetadata.Name] = catalogMetadata
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("unable to parse declarative config into CatalogMetadata API: %w", err)
 	}
 
-	for _, catalogMetadata := range catalogMetadataObjs {
-		if err := ctrlutil.SetOwnerReference(catalog, catalogMetadata, r.Client.Scheme()); err != nil {
-			return fmt.Errorf("setting ownerreference on CatalogMetadata %q: %w", catalogMetadata.Name, err)
-		}
-
-		if err := r.Client.Create(ctx, catalogMetadata); err != nil {
-			return fmt.Errorf("creating catalogMetadata %q: %w", catalogMetadata.Name, err)
-		}
-
+	var existingCatalogMetadataObjs catalogv1beta1.CatalogMetadataList
+	if err := r.List(ctx, &existingCatalogMetadataObjs); err != nil {
+		return fmt.Errorf("list existing catalog metadata: %v", err)
 	}
+	for _, existingCatalogMetadata := range existingCatalogMetadataObjs.Items {
+		if _, ok := newCatalogMetadataObjs[existingCatalogMetadata.Name]; !ok {
+			// delete existing catalog metadata
+			if err := r.Delete(ctx, &existingCatalogMetadata); err != nil {
+				return fmt.Errorf("delete existing catalog metdata %q: %v", existingCatalogMetadata.Name, err)
+			}
+		}
+	}
+
+	ordered := sets.List(sets.KeySet(newCatalogMetadataObjs))
+	for _, catalogMetadataName := range ordered {
+		newcatalogMetadata := newCatalogMetadataObjs[catalogMetadataName]
+		if err := r.Client.Patch(ctx, newcatalogMetadata, client.Apply, &client.PatchOptions{Force: pointer.Bool(true), FieldManager: "catalog-controller"}); err != nil {
+			return fmt.Errorf("applying catalog metadata %q: %w", newcatalogMetadata.Name, err)
+		}
+	}
+
 	return nil
 }
