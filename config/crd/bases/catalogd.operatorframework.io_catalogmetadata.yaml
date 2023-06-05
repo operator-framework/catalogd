@@ -12,7 +12,7 @@ spec:
     listKind: CatalogMetadataList
     plural: catalogmetadata
     singular: catalogmetadata
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1beta1
     schema:

@@ -21,8 +21,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // CatalogMetadataSpec defines the desired state of CatalogMetadata
@@ -35,6 +33,7 @@ type CatalogMetadataSpec struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:resource:scope=Cluster
 
 // CatalogMetadata is the Schema for the catalogs API
 type CatalogMetadata struct {
@@ -55,28 +54,4 @@ type CatalogMetadataList struct {
 
 func init() {
 	SchemeBuilder.Register(&CatalogMetadata{}, &CatalogMetadataList{})
-}
-
-func (_ CatalogMetadata) NamespaceScoped() bool {
-	return false
-}
-
-func (_ CatalogMetadata) New() runtime.Object {
-	return &CatalogMetadata{}
-}
-
-func (_ CatalogMetadata) NewList() runtime.Object {
-	return &CatalogMetadataList{}
-}
-
-func (_ CatalogMetadata) GetGroupVersionResource() schema.GroupVersionResource {
-	return GroupVersion.WithResource("catalogmetadatas")
-}
-
-func (_ CatalogMetadata) IsStorageVersion() bool {
-	return true
-}
-
-func (c *CatalogMetadata) GetObjectMeta() *metav1.ObjectMeta {
-	return &c.ObjectMeta
 }
