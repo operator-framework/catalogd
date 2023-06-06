@@ -29,7 +29,10 @@ type CatalogMetadataSpec struct {
 	Schema  string                  `json:"schema"`
 	Package string                  `json:"package,omitempty"`
 	Name    string                  `json:"name,omitempty"`
-	Content json.RawMessage         `json:"content,omitempty"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	Content json.RawMessage `json:"content,omitempty"`
 }
 
 //+kubebuilder:object:root=true
