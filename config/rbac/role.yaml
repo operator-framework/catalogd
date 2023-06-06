@@ -33,6 +33,32 @@ rules:
 - apiGroups:
   - catalogd.operatorframework.io
   resources:
+  - catalogmetadata
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - catalogd.operatorframework.io
+  resources:
+  - catalogmetadata/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - catalogd.operatorframework.io
+  resources:
+  - catalogmetadata/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - catalogd.operatorframework.io
+  resources:
   - catalogs
   verbs:
   - create

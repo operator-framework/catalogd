@@ -57,6 +57,9 @@ type CatalogReconciler struct {
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages/finalizers,verbs=update
+//+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=create;update;patch;delete;get;list;watch
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get;list;watch
 
@@ -375,14 +378,14 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 }
 
 func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, catalog *corev1beta1.Catalog) error {
-	newCatalogMetadataObjs := map[string]*catalogv1beta1.CatalogMetadata{}
+	newCatalogMetadataObjs := map[string]*corev1beta1.CatalogMetadata{}
 
 	err := declcfg.WalkMetasFS(fs, func(path string, meta *declcfg.Meta, err error) error {
 		if err != nil {
 			return fmt.Errorf("unable to parse catalog content in the path: %w", err)
 		}
 
-		catalogMetadata := &catalogv1beta1.CatalogMetadata{
+		catalogMetadata := &corev1beta1.CatalogMetadata{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: corev1beta1.GroupVersion.String(),
 				Kind:       "CatalogMetadata",
@@ -405,7 +408,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 					Controller:         pointer.Bool(true),
 				}},
 			},
-			Spec: catalogv1beta1.CatalogMetadataSpec{
+			Spec: corev1beta1.CatalogMetadataSpec{
 				Catalog: corev1.LocalObjectReference{Name: catalog.Name},
 				Name:    meta.Name,
 				Schema:  meta.Schema,
@@ -422,7 +425,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 		return fmt.Errorf("unable to parse declarative config into CatalogMetadata API: %w", err)
 	}
 
-	var existingCatalogMetadataObjs catalogv1beta1.CatalogMetadataList
+	var existingCatalogMetadataObjs corev1beta1.CatalogMetadataList
 	if err := r.List(ctx, &existingCatalogMetadataObjs); err != nil {
 		return fmt.Errorf("list existing catalog metadata: %v", err)
 	}
