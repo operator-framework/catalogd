@@ -49,21 +49,7 @@ var _ = Describe("Catalog Unpacking", func() {
 				g.Expect(cond.Message).To(ContainSubstring("successfully unpacked the catalog image"))
 			}).Should(Succeed())
 
-			// TODO: Remove these eventually blocks
 			By("Ensuring the expected Package resource is created")
-			// Eventually(func(g Gomega) {
-			// 	pack := &catalogd.Package{}
-			// 	err := c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("%s-%s", catalog.Name, pkg)}, pack)
-			// 	g.Expect(err).ToNot(HaveOccurred())
-			// 	g.Expect(pack.Spec.Catalog.Name).To(Equal(catalog.Name))
-			// 	g.Expect(pack.Spec.Channels).To(HaveLen(1))
-			// 	g.Expect(pack.Spec.Channels[0].Name).To(Equal(channel))
-			// 	g.Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
-			// 	g.Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(bundle))
-			// 	g.Expect(pack.Spec.DefaultChannel).To(Equal(channel))
-			// 	g.Expect(pack.Spec.Name).To(Equal(pkg))
-			// }).Should(Succeed())
-
 			pack := &catalogd.Package{}
 			err := c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("%s-%s", catalog.Name, pkg)}, pack)
 			Expect(err).ToNot(HaveOccurred())
@@ -76,18 +62,6 @@ var _ = Describe("Catalog Unpacking", func() {
 			Expect(pack.Spec.Name).To(Equal(pkg))
 
 			By("Ensuring the expected BundleMetadata resource is created")
-			// Eventually(func(g Gomega) {
-			// 	bm := &catalogd.BundleMetadata{}
-			// 	err := c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("%s-%s", catalog.Name, bundle)}, bm)
-			// 	g.Expect(err).ToNot(HaveOccurred())
-			// 	g.Expect(bm.Spec.Catalog.Name).To(Equal(catalog.Name))
-			// 	g.Expect(bm.Spec.Package).To(Equal(pkg))
-			// 	g.Expect(bm.Spec.Image).To(Equal(bundleImage))
-			// 	g.Expect(bm.Spec.Properties).To(HaveLen(1))
-			// 	g.Expect(bm.Spec.Properties[0].Type).To(Equal("olm.package"))
-			// 	g.Expect(bm.Spec.Properties[0].Value).To(Equal(`{"packageName":"prometheus","version":"0.47.0"}`))
-			// }).Should(Succeed())
-
 			bm := &catalogd.BundleMetadata{}
 			err = c.Get(ctx, types.NamespacedName{Name: fmt.Sprintf("%s-%s", catalog.Name, bundle)}, bm)
 			Expect(err).ToNot(HaveOccurred())
