@@ -64,8 +64,7 @@ func main() {
 		catalogdVersion      bool
 		sysNs                string
 	)
-	// set up a regular go flagset for our normal flags
-	flagSet := flag.NewFlagSet("catalogd-flagset", flag.ExitOnError)
+	flagSet := flag.NewFlagSet("catalogd", flag.ExitOnError)
 	flagSet.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flagSet.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flagSet.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -76,20 +75,14 @@ func main() {
 	flagSet.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace catalogd uses for internal state, configuration, and workloads")
 	flagSet.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
 	flagSet.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
-
-	// set up zap options and add flags to the flagset
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flagSet)
 
-	// set up feature gate flags. This has to use a pflag flagset
-	pFlagSet := pflag.NewFlagSet("featuregate-flagset", pflag.ExitOnError)
-	features.CatalogdFeatureGate.AddFlag(pFlagSet)
-
 	// Combine both flagsets and parse them
 	pflag.CommandLine.AddGoFlagSet(flagSet)
-	pflag.CommandLine.AddFlagSet(pFlagSet)
+	features.CatalogdFeatureGate.AddFlag(pflag.CommandLine)
 	pflag.Parse()
 
 	if catalogdVersion {
