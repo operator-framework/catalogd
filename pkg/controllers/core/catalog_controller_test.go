@@ -323,7 +323,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 				// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
 				It("should create CatalogMetadata resources", func() {
-					catalogMetadatas := &catalogdv1beta1.CatalogMetadataList{}
+					catalogMetadatas := &v1alpha1.CatalogMetadataList{}
 					Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
 					Expect(catalogMetadatas.Items).To(HaveLen(3))
 					for _, catalogMetadata := range catalogMetadatas.Items {
