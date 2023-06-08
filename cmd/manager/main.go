@@ -23,11 +23,10 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -35,7 +34,10 @@ import (
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/version"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
+	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/profile"
+	"github.com/spf13/pflag"
+
 	//+kubebuilder:scaffold:imports
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
@@ -62,21 +64,33 @@ func main() {
 		catalogdVersion      bool
 		sysNs                string
 	)
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	// set up a regular go flagset for our normal flags
+	flagSet := flag.NewFlagSet("catalogd-flagset", flag.ExitOnError)
+	flagSet.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flagSet.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flagSet.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	// TODO: should we move the unpacker to some common place? Or... hear me out... should catalogd just be a rukpak provisioner?
-	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
-	flag.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace catalogd uses for internal state, configuration, and workloads")
+	flagSet.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
+	flagSet.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace catalogd uses for internal state, configuration, and workloads")
+	flagSet.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
+	flagSet.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
+
+	// set up zap options and add flags to the flagset
 	opts := zap.Options{
 		Development: true,
 	}
-	flag.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
-	flag.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+	opts.BindFlags(flagSet)
+
+	// set up feature gate flags. This has to use a pflag flagset
+	pFlagSet := pflag.NewFlagSet("featuregate-flagset", pflag.ExitOnError)
+	features.CatalogdFeatureGate.AddFlag(pFlagSet)
+
+	// Combine both flagsets and parse them
+	pflag.CommandLine.AddGoFlagSet(flagSet)
+	pflag.CommandLine.AddFlagSet(pFlagSet)
+	pflag.Parse()
 
 	if catalogdVersion {
 		fmt.Printf("%#v\n", version.Version())
