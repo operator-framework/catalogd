@@ -141,18 +141,18 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		// fbc, err := declcfg.LoadFS(unpackResult.FS)
-		// if err != nil {
-		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
-		// }
+		fbc, err := declcfg.LoadFS(unpackResult.FS)
+		if err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
+		}
 
-		// if err := r.syncPackages(ctx, fbc, catalog); err != nil {
-		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create package objects: %v", err))
-		// }
+		if err := r.syncPackages(ctx, fbc, catalog); err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create package objects: %v", err))
+		}
 
-		// if err := r.syncBundleMetadata(ctx, fbc, catalog); err != nil {
-		// 	return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
-		// }
+		if err := r.syncBundleMetadata(ctx, fbc, catalog); err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
+		}
 
 		if err = r.syncCatalogMetadata(ctx, unpackResult.FS, catalog); err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create catalog metadata objects: %v", err))
@@ -377,12 +377,28 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 	return nil
 }
 
+// syncCatalogMetadata will create a `CatalogMetadata` resource for each
+// "olm.bundle" and "olm.package" objects that exist for the given catalog contents. Returns an
+// error if any are encountered.
 func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, catalog *corev1beta1.Catalog) error {
 	newCatalogMetadataObjs := map[string]*corev1beta1.CatalogMetadata{}
 
 	err := declcfg.WalkMetasFS(fs, func(path string, meta *declcfg.Meta, err error) error {
 		if err != nil {
-			return fmt.Errorf("unable to parse catalog content in the path: %w", err)
+			return fmt.Errorf("error in parsing catalog content files in the filesystem: %w", err)
+		}
+
+		packageOrName := meta.Package
+		if packageOrName == "" {
+			packageOrName = meta.Name
+		}
+
+		objName := fmt.Sprintf("%s-%s", catalog.Name, meta.Schema)
+		if meta.Package != "" {
+			objName = fmt.Sprintf("%s-%s", objName, meta.Package)
+		}
+		if meta.Name != "" {
+			objName = fmt.Sprintf("%s-%s", objName, meta.Name)
 		}
 
 		catalogMetadata := &corev1beta1.CatalogMetadata{
@@ -391,13 +407,13 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 				Kind:       "CatalogMetadata",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: meta.Name,
+				Name: objName,
 				Labels: map[string]string{
 					"catalogd.operatorframework.io/catalog":       catalog.Name,
 					"catalogd.operatorframework.io/schema":        meta.Schema,
 					"catalogd.operatorframework.io/package":       meta.Package,
 					"catalogd.operatorframework.io/name":          meta.Name,
-					"catalogd.operatorframework.io/packageOrName": meta.Name,
+					"catalogd.operatorframework.io/packageOrName": packageOrName,
 				},
 				OwnerReferences: []metav1.OwnerReference{{
 					APIVersion:         corev1beta1.GroupVersion.String(),
@@ -417,6 +433,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 			},
 		}
 
+		// TODO (rashmigottipati): Optimize the sync process by just storing the catalog metadata names instead of the entire catalogMetadata object
 		newCatalogMetadataObjs[catalogMetadata.Name] = catalogMetadata
 
 		return nil

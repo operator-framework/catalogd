@@ -42,9 +42,10 @@ func (ms *MockSource) Unpack(_ context.Context, _ *v1alpha1.Catalog) (*source.Re
 
 var _ = Describe("Catalogd Controller Test", func() {
 	var (
-		ctx        context.Context
-		reconciler *core.CatalogReconciler
-		mockSource *MockSource
+		ctx                     context.Context
+		reconciler              *core.CatalogReconciler
+		mockSource              *MockSource
+		testCatalogMetadataName string
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
@@ -87,6 +88,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 		)
 		BeforeEach(func() {
 			cKey = types.NamespacedName{Name: fmt.Sprintf("catalogd-test-%s", rand.String(8))}
+			testCatalogMetadataName = cKey.Name
 		})
 
 		When("the catalog specifies an invalid source", func() {
@@ -286,6 +288,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 				})
 
+				// TODO (rashmigottipati): Add testing of BundleMetadata sync process.
 				It("should create BundleMetadata resources", func() {
 					// validate bundlemetadata resources
 					bundlemetadatas := &v1alpha1.BundleMetadataList{}
@@ -302,6 +305,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
 				})
 
+				// TODO (rashmigottipati): Add testing of Package sync process.
 				It("should create Package resources", func() {
 					// validate package resources
 					packages := &v1alpha1.PackageList{}
@@ -316,6 +320,22 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
 					Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
 				})
+
+				// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
+				It("should create CatalogMetadata resources", func() {
+					catalogMetadatas := &catalogdv1beta1.CatalogMetadataList{}
+					Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
+					Expect(catalogMetadatas.Items).To(HaveLen(3))
+					for _, catalogMetadata := range catalogMetadatas.Items {
+						Expect(catalogMetadata.Name).To(ContainSubstring(testCatalogMetadataName))
+						Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+						Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
+						Expect(catalogMetadata.OwnerReferences).To(HaveLen(1))
+						Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(testCatalogMetadataName))
+						Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(testCatalogMetadataName))
+					}
+				})
+
 			})
 		})
 
