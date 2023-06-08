@@ -65,24 +65,23 @@ func main() {
 		catalogdVersion      bool
 		sysNs                string
 	)
-	flagSet := flag.NewFlagSet("catalogd", flag.ExitOnError)
-	flagSet.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flagSet.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flagSet.BoolVar(&enableLeaderElection, "leader-elect", false,
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	// TODO: should we move the unpacker to some common place? Or... hear me out... should catalogd just be a rukpak provisioner?
-	flagSet.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
-	flagSet.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace catalogd uses for internal state, configuration, and workloads")
-	flagSet.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
-	flagSet.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
+	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
+	flag.StringVar(&sysNs, "system-ns", "catalogd-system", "The namespace catalogd uses for internal state, configuration, and workloads")
+	flag.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
+	flag.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
 	opts := zap.Options{
 		Development: true,
 	}
-	opts.BindFlags(flagSet)
+	opts.BindFlags(flag.CommandLine)
 
 	// Combine both flagsets and parse them
-	pflag.CommandLine.AddGoFlagSet(flagSet)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	features.CatalogdFeatureGate.AddFlag(pflag.CommandLine)
 	pflag.Parse()
 
