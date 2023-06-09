@@ -1,7 +1,8 @@
 # catalogd
 
-This repository is a prototype for a custom apiserver that uses a (dedicated ectd instance)[configs/etcd] to serve [FBC](https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs) content on cluster in a Kubernetes native way on cluster.
+Catalogd is a Kubernetes extension that unpacks and serves the package and bundle metadata of file-based catalog (FBC) content into on-cluster APIs. As component of the Operator Lifecycle Manager (OLM) v1 microservices architecture, catalogd hosts Operators and controllers that extend Kubernetes APIs and helps customers discover installable content. 
 
+In its current state, the catalogd prototype is a custom API server that uses a (dedicated ectd instance)[configs/etcd] to serve [FBC](https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs) content on cluster in a Kubernetes-native way. 
 
 ## Enhacement 
 
