@@ -1,0 +1,12 @@
+apiVersion: catalogd.operatorframework.io/v1alpha1
+kind: Catalog
+metadata:
+  name: git
+spec:
+  source:
+    type: git
+    git:
+      repository: https://github.com/everettraven/fbc-composite-example.git
+      directory: ./catalogs/v4.13
+      ref:
+        branch: main
