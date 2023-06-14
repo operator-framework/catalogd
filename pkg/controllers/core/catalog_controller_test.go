@@ -14,11 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
-	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/controllers/core"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var _ source.Unpacker = &MockSource{}
@@ -32,7 +33,7 @@ type MockSource struct {
 	shouldError bool
 }
 
-func (ms *MockSource) Unpack(ctx context.Context, catalog *v1alpha1.Catalog) (*source.Result, error) {
+func (ms *MockSource) Unpack(_ context.Context, _ *source.BundleSource, _ client.Object) (*source.Result, error) {
 	if ms.shouldError {
 		return nil, errors.New("mocksource error")
 	}
@@ -52,8 +53,8 @@ var _ = Describe("Catalogd Controller Test", func() {
 		reconciler = &core.CatalogReconciler{
 			Client: cl,
 			Unpacker: source.NewUnpacker(
-				map[v1alpha1.SourceType]source.Unpacker{
-					v1alpha1.SourceTypeImage: mockSource,
+				map[source.SourceType]source.Unpacker{
+					source.SourceTypeImage: mockSource,
 				},
 			),
 		}
@@ -95,7 +96,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 				catalog = &v1alpha1.Catalog{
 					ObjectMeta: metav1.ObjectMeta{Name: cKey.Name},
 					Spec: v1alpha1.CatalogSpec{
-						Source: v1alpha1.CatalogSource{
+						Source: source.BundleSource{
 							Type: "invalid-source",
 						},
 					},
@@ -131,9 +132,9 @@ var _ = Describe("Catalogd Controller Test", func() {
 				catalog = &v1alpha1.Catalog{
 					ObjectMeta: metav1.ObjectMeta{Name: cKey.Name},
 					Spec: v1alpha1.CatalogSpec{
-						Source: v1alpha1.CatalogSource{
-							Type: "image",
-							Image: &v1alpha1.ImageSource{
+						Source: source.BundleSource{
+							Type: source.SourceTypeImage,
+							Image: &source.ImageSource{
 								Ref: "somecatalog:latest",
 							},
 						},
@@ -247,7 +248,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					mockSource.result = &source.Result{
 						ResolvedSource: &catalog.Spec.Source,
 						State:          source.StateUnpacked,
-						FS:             filesys,
+						Bundle:         filesys,
 					}
 
 					// reconcile

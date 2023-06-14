@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
@@ -32,11 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/version"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/profile"
+	"github.com/operator-framework/rukpak/pkg/source"
 	"github.com/spf13/pflag"
 
 	//+kubebuilder:scaffold:imports
@@ -105,7 +106,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(mgr, sysNs, unpackImage)
+	unpackerOpts := source.DefaultUnpackerOptions{
+		Cluster: mgr,
+		RootCAs: &x509.CertPool{},
+		ImageUnpackerOptions: []source.ImageUnpackerOption{
+			source.WithBundleDir("/configs"),
+			source.WithFieldManager("catalogd-core"),
+			source.WithPodNamespace(sysNs),
+			source.WithUnpackImage(unpackImage),
+		},
+		GitUnpackerOptions: []source.GitUnpackerOption{
+			source.WithGitSecretNamespace(sysNs),
+		},
+		ConfigMapUnpackerOptions: []source.ConfigMapUnpackerOption{
+			source.WithConfigMapNamespace(sysNs),
+		},
+		UploadUnpackerOptions: []source.UploadUnpackerOption{
+			source.WithBaseDownloadURL(""),
+			source.WithBearerToken(mgr.GetConfig().BearerToken),
+		},
+		HTTPUnpackerOptions: []source.HTTPUnpackerOption{
+			source.WithHTTPSecretNamespace(sysNs),
+		},
+	}
+
+	unpacker, err := source.NewDefaultUnpacker(unpackerOpts)
 	if err != nil {
 		setupLog.Error(err, "unable to create unpacker")
 		os.Exit(1)

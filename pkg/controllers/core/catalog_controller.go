@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
+	"github.com/operator-framework/rukpak/pkg/source"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -35,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
-	"github.com/operator-framework/catalogd/internal/source"
 )
 
 // TODO (everettraven): Add unit tests for the CatalogReconciler
@@ -111,7 +111,7 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Catalog) (ctrl.Result, error) {
-	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
+	unpackResult, err := r.Unpacker.Unpack(ctx, &catalog.Spec.Source, catalog)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("source bundle content: %v", err))
 	}
@@ -128,7 +128,7 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		fbc, err := declcfg.LoadFS(unpackResult.FS)
+		fbc, err := declcfg.LoadFS(unpackResult.Bundle)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
 		}

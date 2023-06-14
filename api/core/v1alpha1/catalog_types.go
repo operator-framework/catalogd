@@ -17,17 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/operator-framework/rukpak/pkg/source"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TODO: The source types, reason, etc. are all copy/pasted from the rukpak
-//   repository. We should look into whether it is possible to share these.
-
-type SourceType string
-
+//
+//	repository. We should look into whether it is possible to share these.
 const (
-	SourceTypeImage SourceType = "image"
-
 	TypeUnpacked = "Unpacked"
 
 	ReasonUnpackPending    = "UnpackPending"
@@ -68,7 +65,7 @@ type CatalogList struct {
 type CatalogSpec struct {
 	// Source is the source of a Catalog that contains Operators' metadata in the FBC format
 	// https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
-	Source CatalogSource `json:"source"`
+	Source source.BundleSource `json:"source"`
 }
 
 // CatalogStatus defines the observed state of Catalog
@@ -76,24 +73,8 @@ type CatalogStatus struct {
 	// Conditions store the status conditions of the Catalog instances
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
-	ResolvedSource *CatalogSource `json:"resolvedSource,omitempty"`
-	Phase          string         `json:"phase,omitempty"`
-}
-
-// CatalogSource contains the sourcing information for a Catalog
-type CatalogSource struct {
-	// Type defines the kind of Catalog content being sourced.
-	Type SourceType `json:"type"`
-	// Image is the catalog image that backs the content of this catalog.
-	Image *ImageSource `json:"image,omitempty"`
-}
-
-// ImageSource contains information required for sourcing a Catalog from an OCI image
-type ImageSource struct {
-	// Ref contains the reference to a container image containing Catalog contents.
-	Ref string `json:"ref"`
-	// PullSecret contains the name of the image pull secret in the namespace that catalogd is deployed.
-	PullSecret string `json:"pullSecret,omitempty"`
+	ResolvedSource *source.BundleSource `json:"resolvedSource,omitempty"`
+	Phase          string               `json:"phase,omitempty"`
 }
 
 func init() {
