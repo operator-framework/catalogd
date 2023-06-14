@@ -57,8 +57,6 @@ type CatalogReconciler struct {
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages/finalizers,verbs=update
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=create;update;patch;delete;get;list;watch
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get;list;watch
 
@@ -376,13 +374,13 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 	return nil
 }
 
-// syncCatalogMetadata will create a `CatalogMetadata` resource for each
-// "olm.bundle" and "olm.package" objects that exist for the given catalog contents. Returns an
+// syncCatalogMetadata will sync all of the catalog contents to `CatalogMetadata` objects
+// by creating, updating and deleting the objects as necessary. Returns an
 // error if any are encountered.
-func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, catalog *v1alpha1.Catalog) error {
+func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS, catalog *v1alpha1.Catalog) error {
 	newCatalogMetadataObjs := map[string]*v1alpha1.CatalogMetadata{}
 
-	err := declcfg.WalkMetasFS(fs, func(path string, meta *declcfg.Meta, err error) error {
+	err := declcfg.WalkMetasFS(fsys, func(path string, meta *declcfg.Meta, err error) error {
 		if err != nil {
 			return fmt.Errorf("error in parsing catalog content files in the filesystem: %w", err)
 		}
@@ -392,13 +390,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 			packageOrName = meta.Name
 		}
 
-		objName := fmt.Sprintf("%s-%s", catalog.Name, meta.Schema)
-		if meta.Package != "" {
-			objName = fmt.Sprintf("%s-%s", objName, meta.Package)
-		}
-		if meta.Name != "" {
-			objName = fmt.Sprintf("%s-%s", objName, meta.Name)
-		}
+		objName := generateCatalogMetadataName(ctx, catalog.Name, meta)
 
 		catalogMetadata := &v1alpha1.CatalogMetadata{
 			TypeMeta: metav1.TypeMeta{
@@ -408,11 +400,11 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 			ObjectMeta: metav1.ObjectMeta{
 				Name: objName,
 				Labels: map[string]string{
-					"catalogd.operatorframework.io/catalog":       catalog.Name,
-					"catalogd.operatorframework.io/schema":        meta.Schema,
-					"catalogd.operatorframework.io/package":       meta.Package,
-					"catalogd.operatorframework.io/name":          meta.Name,
-					"catalogd.operatorframework.io/packageOrName": packageOrName,
+					"catalog":       catalog.Name,
+					"schema":        meta.Schema,
+					"package":       meta.Package,
+					"name":          meta.Name,
+					"packageOrName": packageOrName,
 				},
 				OwnerReferences: []metav1.OwnerReference{{
 					APIVersion:         v1alpha1.GroupVersion.String(),
@@ -432,7 +424,6 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 			},
 		}
 
-		// TODO (rashmigottipati): Optimize the sync process by just storing the catalog metadata names instead of the entire catalogMetadata object
 		newCatalogMetadataObjs[catalogMetadata.Name] = catalogMetadata
 
 		return nil
@@ -449,7 +440,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 		if _, ok := newCatalogMetadataObjs[existingCatalogMetadata.Name]; !ok {
 			// delete existing catalog metadata
 			if err := r.Delete(ctx, &existingCatalogMetadata); err != nil {
-				return fmt.Errorf("delete existing catalog metdata %q: %v", existingCatalogMetadata.Name, err)
+				return fmt.Errorf("delete existing catalog metadata %q: %v", existingCatalogMetadata.Name, err)
 			}
 		}
 	}
@@ -463,4 +454,15 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fs fs.FS, c
 	}
 
 	return nil
+}
+
+func generateCatalogMetadataName(ctx context.Context, catalogName string, meta *declcfg.Meta) string {
+	objName := fmt.Sprintf("%s-%s", catalogName, meta.Schema)
+	if meta.Package != "" {
+		objName = fmt.Sprintf("%s-%s", objName, meta.Package)
+	}
+	if meta.Name != "" {
+		objName = fmt.Sprintf("%s-%s", objName, meta.Name)
+	}
+	return objName
 }

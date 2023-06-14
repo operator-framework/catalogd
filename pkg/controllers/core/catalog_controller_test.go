@@ -42,10 +42,9 @@ func (ms *MockSource) Unpack(_ context.Context, _ *v1alpha1.Catalog) (*source.Re
 
 var _ = Describe("Catalogd Controller Test", func() {
 	var (
-		ctx                     context.Context
-		reconciler              *core.CatalogReconciler
-		mockSource              *MockSource
-		testCatalogMetadataName string
+		ctx        context.Context
+		reconciler *core.CatalogReconciler
+		mockSource *MockSource
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
@@ -83,19 +82,18 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 	When("the catalog exists", func() {
 		var (
-			catalog *v1alpha1.Catalog
-			cKey    types.NamespacedName
+			catalog    *v1alpha1.Catalog
+			catalogKey types.NamespacedName
 		)
 		BeforeEach(func() {
-			cKey = types.NamespacedName{Name: fmt.Sprintf("catalogd-test-%s", rand.String(8))}
-			testCatalogMetadataName = cKey.Name
+			catalogKey = types.NamespacedName{Name: fmt.Sprintf("catalogd-test-%s", rand.String(8))}
 		})
 
 		When("the catalog specifies an invalid source", func() {
 			BeforeEach(func() {
 				By("initializing cluster state")
 				catalog = &v1alpha1.Catalog{
-					ObjectMeta: metav1.ObjectMeta{Name: cKey.Name},
+					ObjectMeta: metav1.ObjectMeta{Name: catalogKey.Name},
 					Spec: v1alpha1.CatalogSpec{
 						Source: v1alpha1.CatalogSource{
 							Type: "invalid-source",
@@ -111,13 +109,13 @@ var _ = Describe("Catalogd Controller Test", func() {
 			})
 
 			It("should set unpacking status to failed and return an error", func() {
-				res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
+				res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 				Expect(res).To(Equal(ctrl.Result{}))
 				Expect(err).To(HaveOccurred())
 
 				// get the catalog and ensure status is set properly
 				cat := &v1alpha1.Catalog{}
-				Expect(cl.Get(ctx, cKey, cat)).To(Succeed())
+				Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
 				Expect(cat.Status.ResolvedSource).To(BeNil())
 				Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseFailing))
 				cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
@@ -131,7 +129,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 			BeforeEach(func() {
 				By("initializing cluster state")
 				catalog = &v1alpha1.Catalog{
-					ObjectMeta: metav1.ObjectMeta{Name: cKey.Name},
+					ObjectMeta: metav1.ObjectMeta{Name: catalogKey.Name},
 					Spec: v1alpha1.CatalogSpec{
 						Source: v1alpha1.CatalogSource{
 							Type: "image",
@@ -156,13 +154,13 @@ var _ = Describe("Catalogd Controller Test", func() {
 				})
 
 				It("should update status to reflect the pending state", func() {
-					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
+					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 					Expect(res).To(Equal(ctrl.Result{}))
 					Expect(err).ToNot(HaveOccurred())
 
 					// get the catalog and ensure status is set properly
 					cat := &v1alpha1.Catalog{}
-					Expect(cl.Get(ctx, cKey, cat)).To(Succeed())
+					Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
 					Expect(cat.Status.ResolvedSource).To(BeNil())
 					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhasePending))
 					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
@@ -179,13 +177,13 @@ var _ = Describe("Catalogd Controller Test", func() {
 				})
 
 				It("should update status to reflect the unpacking state", func() {
-					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
+					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 					Expect(res).To(Equal(ctrl.Result{}))
 					Expect(err).ToNot(HaveOccurred())
 
 					// get the catalog and ensure status is set properly
 					cat := &v1alpha1.Catalog{}
-					Expect(cl.Get(ctx, cKey, cat)).To(Succeed())
+					Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
 					Expect(cat.Status.ResolvedSource).To(BeNil())
 					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseUnpacking))
 					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
@@ -202,13 +200,13 @@ var _ = Describe("Catalogd Controller Test", func() {
 				})
 
 				It("should set unpacking status to failed and return an error", func() {
-					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
+					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 					Expect(res).To(Equal(ctrl.Result{}))
 					Expect(err).To(HaveOccurred())
 
 					// get the catalog and ensure status is set properly
 					cat := &v1alpha1.Catalog{}
-					Expect(cl.Get(ctx, cKey, cat)).To(Succeed())
+					Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
 					Expect(cat.Status.ResolvedSource).To(BeNil())
 					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseFailing))
 					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
@@ -253,7 +251,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					}
 
 					// reconcile
-					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: cKey})
+					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 					Expect(res).To(Equal(ctrl.Result{}))
 					Expect(err).ToNot(HaveOccurred())
 				})
@@ -279,7 +277,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 				It("should set unpacking status to 'unpacked'", func() {
 					// get the catalog and ensure status is set properly
 					cat := &v1alpha1.Catalog{}
-					Expect(cl.Get(ctx, cKey, cat)).ToNot(HaveOccurred())
+					Expect(cl.Get(ctx, catalogKey, cat)).ToNot(HaveOccurred())
 					Expect(cat.Status.ResolvedSource).ToNot(BeNil())
 					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseUnpacked))
 					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
@@ -327,12 +325,12 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
 					Expect(catalogMetadatas.Items).To(HaveLen(3))
 					for _, catalogMetadata := range catalogMetadatas.Items {
-						Expect(catalogMetadata.Name).To(ContainSubstring(testCatalogMetadataName))
+						Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
 						Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
 						Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
 						Expect(catalogMetadata.OwnerReferences).To(HaveLen(1))
-						Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(testCatalogMetadataName))
-						Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(testCatalogMetadataName))
+						Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(catalogKey.Name))
+						Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
 					}
 				})
 
