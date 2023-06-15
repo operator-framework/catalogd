@@ -88,6 +88,13 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	for f, spec := range features.CatalogdFeatureGate.GetAll() {
+		enabled := features.CatalogdFeatureGate.Enabled(f)
+		if spec.Default != enabled {
+			setupLog.Info("non-default feature gate in use", "name", f, "enabled", enabled)
+		}
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,

@@ -36,32 +36,42 @@ func (i *OCIArtifact) Unpack(ctx context.Context, catalog *catalogdv1alpha1.Cata
 		return nil, fmt.Errorf("parse reference: %v", err)
 	}
 
+	ignoreMediaTypes := []string{pkg.MediaTypeBundleContent}
+
 	desc, err := repo.Resolve(ctx, ref.String())
 	if err != nil {
 		return nil, fmt.Errorf("resolve reference: %v", err)
 	}
 	if err := oras.CopyGraph(ctx, repo, i.LocalStore, desc, oras.CopyGraphOptions{
 		Concurrency:    runtime.NumCPU(),
-		FindSuccessors: fetch.IgnoreMediaTypes(pkg.MediaTypeBundleContent),
+		FindSuccessors: fetch.IgnoreMediaTypes(ignoreMediaTypes...),
 	}); err != nil {
 		return nil, fmt.Errorf("pull artifact to local storage: %v", err)
 	}
 
 	art, err := fetch.FetchArtifact(ctx, i.LocalStore, desc)
 	if err != nil {
+		return nil, fmt.Errorf("fetch artifact descriptor: %v", err)
+	}
+
+	type toFBCer interface {
+		ToFBC(context.Context, string) (*declcfg.DeclarativeConfig, error)
+	}
+
+	var tfbc toFBCer
+	switch art.ArtifactType {
+	case pkg.MediaTypeCatalog:
+		tfbc, err = fetch.FetchCatalog(ctx, i.LocalStore, art, ignoreMediaTypes...)
+	case pkg.MediaTypePackage:
+		tfbc, err = fetch.FetchPackage(ctx, i.LocalStore, art, ignoreMediaTypes...)
+	default:
+		return nil, fmt.Errorf("unsupported artifact type %q", desc.ArtifactType)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("fetch artifact: %v", err)
 	}
 
-	if art.ArtifactType != pkg.MediaTypePackage {
-		return nil, fmt.Errorf("unsupported artifact type %q", desc.ArtifactType)
-	}
-
-	p, err := fetch.FetchPackage(ctx, i.LocalStore, art, pkg.MediaTypeBundleContent)
-	if err != nil {
-		return nil, fmt.Errorf("fetch package: %v", err)
-	}
-
-	fbc, err := p.ToFBC(ctx, ref.Name(), p.Channels[0].Metadata.Name)
+	fbc, err := tfbc.ToFBC(ctx, ref.Name())
 	if err != nil {
 		return nil, fmt.Errorf("convert to FBC: %v", err)
 	}

@@ -1,9 +1,9 @@
 apiVersion: catalogd.operatorframework.io/v1alpha1
 kind: Catalog
 metadata:
-  name: rukpak
+  name: oci-artifacts
 spec:
   source:
     type: ociArtifact
     ociArtifact:
-      ref: docker.io/joelanford/rukpak:package
+      ref: docker.io/joelanford/catalog:catalog

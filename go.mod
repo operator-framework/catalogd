@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/docker/distribution v2.8.2+incompatible
-	github.com/joelanford/olm-oci v0.0.0-20230615031122-9f1a79d7a8d0
+	github.com/joelanford/olm-oci v0.0.0-20230615195914-7bf78ccd70ce
 	github.com/nlepage/go-tarfs v1.1.0
 	github.com/onsi/ginkgo/v2 v2.9.7
 	github.com/onsi/gomega v1.27.7
