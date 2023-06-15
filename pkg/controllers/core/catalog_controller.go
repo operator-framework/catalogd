@@ -112,7 +112,14 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Catalog) (ctrl.Result, error) {
-	unpackResult, err := r.Unpacker.Unpack(ctx, &catalog.Spec.Source, catalog)
+	src := &source.Source{
+		Type:       catalog.Spec.Source.Type,
+		Image:      catalog.Spec.Source.Image,
+		Git:        catalog.Spec.Source.Git,
+		ConfigMaps: catalog.Spec.Source.ConfigMaps,
+		HTTP:       catalog.Spec.Source.HTTP,
+	}
+	unpackResult, err := r.Unpacker.Unpack(ctx, src, catalog)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("source bundle content: %v", err))
 	}
@@ -129,7 +136,7 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		fbc, err := declcfg.LoadFS(unpackResult.Bundle)
+		fbc, err := declcfg.LoadFS(unpackResult.FS)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
 		}

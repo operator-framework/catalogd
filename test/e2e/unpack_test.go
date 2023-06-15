@@ -40,7 +40,7 @@ var _ = Describe("Catalog Unpacking", func() {
 					Name: catalogName,
 				},
 				Spec: catalogd.CatalogSpec{
-					Source: source.BundleSource{
+					Source: catalogd.CatalogSource{
 						Type: source.SourceTypeImage,
 						Image: &source.ImageSource{
 							Ref: catalogRef,

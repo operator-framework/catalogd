@@ -17,13 +17,13 @@ limitations under the License.
 package main
 
 import (
-	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -106,35 +106,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpackerOpts := source.DefaultUnpackerOptions{
-		Cluster: mgr,
-		RootCAs: &x509.CertPool{},
-		ImageUnpackerOptions: []source.ImageUnpackerOption{
-			source.WithBundleDir("/configs"),
-			source.WithFieldManager("catalogd-core"),
-			source.WithPodNamespace(sysNs),
-			source.WithUnpackImage(unpackImage),
-		},
-		GitUnpackerOptions: []source.GitUnpackerOption{
-			source.WithGitSecretNamespace(sysNs),
-		},
-		ConfigMapUnpackerOptions: []source.ConfigMapUnpackerOption{
-			source.WithConfigMapNamespace(sysNs),
-		},
-		UploadUnpackerOptions: []source.UploadUnpackerOption{
-			source.WithBaseDownloadURL(""),
-			source.WithBearerToken(mgr.GetConfig().BearerToken),
-		},
-		HTTPUnpackerOptions: []source.HTTPUnpackerOption{
-			source.WithHTTPSecretNamespace(sysNs),
-		},
-	}
-
-	unpacker, err := source.NewDefaultUnpacker(unpackerOpts)
+	kubeClient, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		setupLog.Error(err, "unable to create unpacker")
+		setupLog.Error(err, "unable to setup kube client")
 		os.Exit(1)
 	}
+
+	unpacker := source.NewUnpacker(map[source.SourceType]source.Unpacker{
+		source.SourceTypeImage: source.NewImageUnpacker(
+			mgr.GetClient(),
+			kubeClient,
+			source.WithPodNamespace(sysNs),
+			source.WithFieldManager("catalogd-core"),
+			source.WithUnpackImage(unpackImage),
+			source.WithDir("/configs"),
+		),
+		source.SourceTypeGit: source.NewGitUnpacker(
+			mgr.GetClient(),
+			source.WithGitSecretNamespace(sysNs),
+		),
+		source.SourceTypeConfigMaps: source.NewConfigMapUnpacker(
+			mgr.GetClient(),
+			source.WithConfigMapNamespace(sysNs),
+		),
+		source.SourceTypeHTTP: source.NewHTTPUnpacker(
+			mgr.GetClient(),
+			source.WithHTTPSecretNamespace(sysNs),
+		),
+	})
 
 	if err = (&corecontrollers.CatalogReconciler{
 		Client:   mgr.GetClient(),

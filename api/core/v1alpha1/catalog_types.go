@@ -65,7 +65,18 @@ type CatalogList struct {
 type CatalogSpec struct {
 	// Source is the source of a Catalog that contains Operators' metadata in the FBC format
 	// https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
-	Source source.BundleSource `json:"source"`
+	Source CatalogSource `json:"source"`
+}
+
+// CatalogSource contains the sourcing information for a Catalog
+type CatalogSource struct {
+	// Type defines the source type for this catalog.
+	Type source.SourceType `json:"type"`
+
+	Image      *source.ImageSource      `json:"image,omitempty"`
+	Git        *source.GitSource        `json:"git,omitempty"`
+	ConfigMaps []source.ConfigMapSource `json:"configMaps,omitempty"`
+	HTTP       *source.HTTPSource       `json:"http,omitempty"`
 }
 
 // CatalogStatus defines the observed state of Catalog
@@ -73,8 +84,8 @@ type CatalogStatus struct {
 	// Conditions store the status conditions of the Catalog instances
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
-	ResolvedSource *source.BundleSource `json:"resolvedSource,omitempty"`
-	Phase          string               `json:"phase,omitempty"`
+	ResolvedSource *source.Source `json:"resolvedSource,omitempty"`
+	Phase          string         `json:"phase,omitempty"`
 }
 
 func init() {

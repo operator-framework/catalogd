@@ -9,8 +9,6 @@
   - required:
     - configMaps
   - required:
-    - upload
-  - required:
     - http
 
 # Union git ref

@@ -33,7 +33,7 @@ type MockSource struct {
 	shouldError bool
 }
 
-func (ms *MockSource) Unpack(_ context.Context, _ *source.BundleSource, _ client.Object) (*source.Result, error) {
+func (ms *MockSource) Unpack(_ context.Context, _ *source.Source, _ client.Object) (*source.Result, error) {
 	if ms.shouldError {
 		return nil, errors.New("mocksource error")
 	}
@@ -96,7 +96,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 				catalog = &v1alpha1.Catalog{
 					ObjectMeta: metav1.ObjectMeta{Name: cKey.Name},
 					Spec: v1alpha1.CatalogSpec{
-						Source: source.BundleSource{
+						Source: v1alpha1.CatalogSource{
 							Type: "invalid-source",
 						},
 					},
@@ -132,7 +132,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 				catalog = &v1alpha1.Catalog{
 					ObjectMeta: metav1.ObjectMeta{Name: cKey.Name},
 					Spec: v1alpha1.CatalogSpec{
-						Source: source.BundleSource{
+						Source: v1alpha1.CatalogSource{
 							Type: source.SourceTypeImage,
 							Image: &source.ImageSource{
 								Ref: "somecatalog:latest",
@@ -246,9 +246,12 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 					mockSource.shouldError = false
 					mockSource.result = &source.Result{
-						ResolvedSource: &catalog.Spec.Source,
-						State:          source.StateUnpacked,
-						Bundle:         filesys,
+						ResolvedSource: &source.Source{
+							Type:  catalog.Spec.Source.Type,
+							Image: catalog.Spec.Source.Image,
+						},
+						State: source.StateUnpacked,
+						FS:    filesys,
 					}
 
 					// reconcile
