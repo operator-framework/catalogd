@@ -40,6 +40,11 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      volumes:
+        - name: oci
+          emptyDir: {}
+        - name: fbc
+          emptyDir: {}
       containers:
       - command:
         - "./manager"
@@ -72,5 +77,10 @@ spec:
             cpu: 1000m
             memory: 200Mi
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - mountPath: /var/cache/oci
+            name: oci
+          - mountPath: /var/cache/fbc
+            name: fbc
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

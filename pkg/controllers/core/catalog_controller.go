@@ -36,6 +36,7 @@ import (
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
+	"github.com/operator-framework/catalogd/pkg/features"
 )
 
 // TODO (everettraven): Add unit tests for the CatalogReconciler
@@ -111,6 +112,12 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Catalog) (ctrl.Result, error) {
+	if !features.CatalogdFeatureGate.Enabled(features.OCIArtifactSource) && catalog.Spec.Source.Type == v1alpha1.SourceTypeOCIArtifact {
+		_ = updateStatusUnpackFailing(&catalog.Status, features.NotEnabledError(features.OCIArtifactSource))
+		// return nil to avoid requeueing
+		return ctrl.Result{}, nil
+	}
+
 	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("source bundle content: %v", err))
@@ -128,7 +135,7 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		fbc, err := declcfg.LoadFS(unpackResult.FS)
+		fbc, err := declcfg.LoadFS(ctx, unpackResult.FS)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
 		}

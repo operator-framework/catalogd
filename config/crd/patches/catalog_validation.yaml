@@ -4,3 +4,5 @@
   value:
   - required:
     - image
+  - required:
+    - ociArtifact

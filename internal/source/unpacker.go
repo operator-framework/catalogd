@@ -6,6 +6,7 @@ import (
 	"io/fs"
 
 	"k8s.io/client-go/kubernetes"
+	"oras.land/oras-go/v2/content/oci"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
 	catalogdv1alpha1 "github.com/operator-framework/catalogd/api/core/v1alpha1"
@@ -98,7 +99,7 @@ func (s *unpacker) Unpack(ctx context.Context, catalog *catalogdv1alpha1.Catalog
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string) (Unpacker, error) {
+func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string, store *oci.Store, fbcRootDir string) (Unpacker, error) {
 	cfg := systemNsCluster.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -110,6 +111,10 @@ func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage 
 			KubeClient:   kubeClient,
 			PodNamespace: namespace,
 			UnpackImage:  unpackImage,
+		},
+		catalogdv1alpha1.SourceTypeOCIArtifact: &OCIArtifact{
+			LocalStore: store,
+			FBCRootDir: fbcRootDir,
 		},
 	}), nil
 }

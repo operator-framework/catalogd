@@ -26,7 +26,8 @@ import (
 type SourceType string
 
 const (
-	SourceTypeImage SourceType = "image"
+	SourceTypeImage       SourceType = "image"
+	SourceTypeOCIArtifact SourceType = "ociArtifact"
 
 	TypeUnpacked = "Unpacked"
 
@@ -86,6 +87,8 @@ type CatalogSource struct {
 	Type SourceType `json:"type"`
 	// Image is the catalog image that backs the content of this catalog.
 	Image *ImageSource `json:"image,omitempty"`
+	// OCIArtifact is the catalog OCI artifact that backs the content of this catalog.
+	OCIArtifact *ImageSource `json:"ociArtifact,omitempty"`
 }
 
 // ImageSource contains information required for sourcing a Catalog from an OCI image

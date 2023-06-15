@@ -53,6 +53,21 @@ spec:
                     required:
                     - ref
                     type: object
+                  ociArtifact:
+                    description: OCIArtifact is the catalog OCI artifact that backs
+                      the content of this catalog.
+                    properties:
+                      pullSecret:
+                        description: PullSecret contains the name of the image pull
+                          secret in the namespace that catalogd is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Catalog contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
                   type:
                     description: Type defines the kind of Catalog content being sourced.
                     type: string
@@ -144,6 +159,21 @@ spec:
                   image:
                     description: Image is the catalog image that backs the content
                       of this catalog.
+                    properties:
+                      pullSecret:
+                        description: PullSecret contains the name of the image pull
+                          secret in the namespace that catalogd is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Catalog contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
+                  ociArtifact:
+                    description: OCIArtifact is the catalog OCI artifact that backs
+                      the content of this catalog.
                     properties:
                       pullSecret:
                         description: PullSecret contains the name of the image pull
