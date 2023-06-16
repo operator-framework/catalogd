@@ -18,6 +18,9 @@ package core
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 
@@ -390,7 +393,10 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 			packageOrName = meta.Name
 		}
 
-		objName := generateCatalogMetadataName(ctx, catalog.Name, meta)
+		var objName string
+		if objName, err = generateCatalogMetadataName(ctx, catalog.Name, meta); err != nil {
+			return fmt.Errorf("error in generating catalog metadata name: %w", err)
+		}
 
 		catalogMetadata := &v1alpha1.CatalogMetadata{
 			TypeMeta: metav1.TypeMeta{
@@ -456,13 +462,21 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 	return nil
 }
 
-func generateCatalogMetadataName(ctx context.Context, catalogName string, meta *declcfg.Meta) string {
+func generateCatalogMetadataName(ctx context.Context, catalogName string, meta *declcfg.Meta) (string, error) {
 	objName := fmt.Sprintf("%s-%s", catalogName, meta.Schema)
 	if meta.Package != "" {
 		objName = fmt.Sprintf("%s-%s", objName, meta.Package)
 	}
 	if meta.Name != "" {
 		objName = fmt.Sprintf("%s-%s", objName, meta.Name)
+	} else {
+		metaJSON, err := json.Marshal(meta.Blob)
+		if err != nil {
+			return "", fmt.Errorf("JSON marshal error: %v", err)
+		}
+		h := sha1.New()
+		h.Write(metaJSON)
+		objName = fmt.Sprintf("%s-%s", objName, hex.EncodeToString(h.Sum(nil)))
 	}
-	return objName
+	return objName, nil
 }
