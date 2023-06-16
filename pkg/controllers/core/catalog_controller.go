@@ -29,10 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
@@ -106,7 +104,7 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// even though they already exist. This should be resolved by the fix
 		// for https://github.com/operator-framework/catalogd/issues/6. The fix for
 		// #6 should also remove the usage of `builder.WithPredicates(predicate.GenerationChangedPredicate{})`
-		For(&v1alpha1.Catalog{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.Catalog{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
 }
