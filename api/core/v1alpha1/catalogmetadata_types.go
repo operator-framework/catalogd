@@ -25,7 +25,7 @@ import (
 
 // CatalogMetadataSpec defines the desired state of CatalogMetadata.
 // It is based on the `Meta` schema defined in Operator Registry (https://olm.operatorframework.io/docs/reference/file-based-catalogs/#schema)
-// and it adheres to the format of `Meta` schema that contains fields such as `Schema` (Required), `Package` (Optional), `Name` (Optional) and `Properties` (Optional).
+// and it adheres to the format of `Meta` schema that contains fields such as `Schema` (Required), `Package` (Optional), `Name` (Optional) and `Blob`.
 // The `CatalogMetadataSpec` is an extension of the `Meta` schema that additionally contains a `Catalog` field which references the Catalog and a `Content` field
 // which is a JSON representation of the File-Based Catalog blob.
 type CatalogMetadataSpec struct {
