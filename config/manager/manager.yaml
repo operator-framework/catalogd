@@ -45,7 +45,6 @@ spec:
         - "./manager"
         args:
         - --leader-elect
-        - --feature-gates="PackagesBundleMetadataAPIs=true"
         image: controller:latest
         name: manager
         securityContext:
