@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	// #nosec
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -447,10 +448,11 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 	if err := r.List(ctx, &existingCatalogMetadataObjs); err != nil {
 		return fmt.Errorf("list existing catalog metadata: %v", err)
 	}
-	for _, existingCatalogMetadata := range existingCatalogMetadataObjs.Items {
+	for i, existingCatalogMetadata := range existingCatalogMetadataObjs.Items {
 		if _, ok := newCatalogMetadataObjs[existingCatalogMetadata.Name]; !ok {
 			// delete existing catalog metadata
-			if err := r.Delete(ctx, &existingCatalogMetadata); err != nil {
+			err := r.Delete(ctx, &existingCatalogMetadataObjs.Items[i])
+			if err != nil {
 				return fmt.Errorf("delete existing catalog metadata %q: %v", existingCatalogMetadata.Name, err)
 			}
 		}
@@ -472,7 +474,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 // In the place of the empty `meta.Name`, it computes a hash of `meta.Blob` to prevent multiple FBC blobs colliding on the the object name.
 // Possible outcomes are: "{catalogName}-{meta.Schema}-{meta.Name}", "{catalogName}-{meta.Schema}-{meta.Package}-{meta.Name}",
 // "{catalogName}-{meta.Schema}-{hash{meta.Blob}}", "{catalogName}-{meta.Schema}-{meta.Package}-{hash{meta.Blob}}".
-func generateCatalogMetadataName(ctx context.Context, catalogName string, meta *declcfg.Meta) (string, error) {
+func generateCatalogMetadataName(_ context.Context, catalogName string, meta *declcfg.Meta) (string, error) {
 	objName := fmt.Sprintf("%s-%s", catalogName, meta.Schema)
 	if meta.Package != "" {
 		objName = fmt.Sprintf("%s-%s", objName, meta.Package)
@@ -484,6 +486,7 @@ func generateCatalogMetadataName(ctx context.Context, catalogName string, meta *
 		if err != nil {
 			return "", fmt.Errorf("JSON marshal error: %v", err)
 		}
+		// #nosec
 		h := sha1.New()
 		h.Write(metaJSON)
 		objName = fmt.Sprintf("%s-%s", objName, hex.EncodeToString(h.Sum(nil)))

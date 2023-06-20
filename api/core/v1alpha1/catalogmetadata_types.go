@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"encoding/json"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,10 +29,10 @@ import (
 // The `CatalogMetadataSpec` is an extension of the `Meta` schema that additionally contains a `Catalog` field which references the Catalog and a `Content` field
 // which is a JSON representation of the File-Based Catalog blob.
 type CatalogMetadataSpec struct {
-	Catalog v1.LocalObjectReference `json:"catalog"`
-	Schema  string                  `json:"schema"`
-	Package string                  `json:"package,omitempty"`
-	Name    string                  `json:"name,omitempty"`
+	Catalog corev1.LocalObjectReference `json:"catalog"`
+	Schema  string                      `json:"schema"`
+	Package string                      `json:"package,omitempty"`
+	Name    string                      `json:"name,omitempty"`
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object

@@ -17,7 +17,7 @@ var catalogdFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	// Add new feature gate definitions
 	// Ex: SomeFeature: {...}
 
-	PackagesBundleMetadataAPIs: {Default: false, PreRelease: featuregate.Alpha},
+	PackagesBundleMetadataAPIs: {Default: false, PreRelease: featuregate.Deprecated},
 	CatalogMetadataAPI:         {Default: false, PreRelease: featuregate.Alpha},
 }
 
