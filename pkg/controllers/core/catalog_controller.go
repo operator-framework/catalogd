@@ -110,6 +110,13 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// Note: This function always returns ctrl.Result{}. The linter
+// fusses about this as we could instead just return error. This was
+// discussed in https://github.com/operator-framework/rukpak/pull/635#discussion_r1229859464
+// and the consensus was that it is better to keep the ctrl.Result return
+// type so that if we do end up needing to return something else we don't forget
+// to add the ctrl.Result type back as a return value. Adding a comment to ignore
+// linting from the linter that was fussing about this.
 // nolint:unparam
 func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Catalog) (ctrl.Result, error) {
 	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
@@ -255,9 +262,10 @@ func (r *CatalogReconciler) syncBundleMetadata(ctx context.Context, declCfg *dec
 		return fmt.Errorf("list existing bundle metadatas: %v", err)
 	}
 	for i := range existingBundles.Items {
-		if _, ok := newBundles[existingBundles.Items[i].Name]; !ok {
-			if err := r.Delete(ctx, &existingBundles.Items[i]); err != nil {
-				return fmt.Errorf("delete existing bundle metadata %q: %v", existingBundles.Items[i].Name, err)
+		existingBundle := existingBundles.Items[i]
+		if _, ok := newBundles[existingBundle.Name]; !ok {
+			if err := r.Delete(ctx, &existingBundle); err != nil {
+				return fmt.Errorf("delete existing bundle metadata %q: %v", existingBundle.Name, err)
 			}
 		}
 	}
@@ -341,10 +349,11 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 		return fmt.Errorf("list existing packages: %v", err)
 	}
 	for i := range existingPkgs.Items {
-		if _, ok := newPkgs[existingPkgs.Items[i].Name]; !ok {
+		existingPkg := existingPkgs.Items[i]
+		if _, ok := newPkgs[existingPkg.Name]; !ok {
 			// delete existing package
-			if err := r.Delete(ctx, &existingPkgs.Items[i]); err != nil {
-				return fmt.Errorf("delete existing package %q: %v", existingPkgs.Items[i].Name, err)
+			if err := r.Delete(ctx, &existingPkg); err != nil {
+				return fmt.Errorf("delete existing package %q: %v", existingPkg.Name, err)
 			}
 		}
 	}

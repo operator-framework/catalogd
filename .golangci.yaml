@@ -45,7 +45,7 @@ linters-settings:
     - pkg: github.com/operator-framework/rukpak/api/v1alpha1
       alias: rukpakv1alpha1
   goimports:
-    local-prefixes: github.com/operator-framework/operator-controller
+    local-prefixes: github.com/operator-framework/catalogd
 
 output:
   format: tab
