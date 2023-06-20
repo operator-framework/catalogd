@@ -110,6 +110,7 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// nolint:unparam
 func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Catalog) (ctrl.Result, error) {
 	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
 	if err != nil {
@@ -146,7 +147,6 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 	default:
 		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
 	}
-
 }
 
 func updateStatusUnpackPending(status *v1alpha1.CatalogStatus, result *source.Result) {
@@ -254,10 +254,10 @@ func (r *CatalogReconciler) syncBundleMetadata(ctx context.Context, declCfg *dec
 	if err := r.List(ctx, &existingBundles); err != nil {
 		return fmt.Errorf("list existing bundle metadatas: %v", err)
 	}
-	for _, existingBundle := range existingBundles.Items {
-		if _, ok := newBundles[existingBundle.Name]; !ok {
-			if err := r.Delete(ctx, &existingBundle); err != nil {
-				return fmt.Errorf("delete existing bundle metadata %q: %v", existingBundle.Name, err)
+	for i := range existingBundles.Items {
+		if _, ok := newBundles[existingBundles.Items[i].Name]; !ok {
+			if err := r.Delete(ctx, &existingBundles.Items[i]); err != nil {
+				return fmt.Errorf("delete existing bundle metadata %q: %v", existingBundles.Items[i].Name, err)
 			}
 		}
 	}
@@ -340,11 +340,11 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 	if err := r.List(ctx, &existingPkgs); err != nil {
 		return fmt.Errorf("list existing packages: %v", err)
 	}
-	for _, existingPkg := range existingPkgs.Items {
-		if _, ok := newPkgs[existingPkg.Name]; !ok {
+	for i := range existingPkgs.Items {
+		if _, ok := newPkgs[existingPkgs.Items[i].Name]; !ok {
 			// delete existing package
-			if err := r.Delete(ctx, &existingPkg); err != nil {
-				return fmt.Errorf("delete existing package %q: %v", existingPkg.Name, err)
+			if err := r.Delete(ctx, &existingPkgs.Items[i]); err != nil {
+				return fmt.Errorf("delete existing package %q: %v", existingPkgs.Items[i].Name, err)
 			}
 		}
 	}
