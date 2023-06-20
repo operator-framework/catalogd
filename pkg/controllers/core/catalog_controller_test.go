@@ -19,6 +19,7 @@ import (
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/controllers/core"
+	"github.com/operator-framework/catalogd/pkg/features"
 )
 
 var _ source.Unpacker = &MockSource{}
@@ -319,20 +320,22 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
 				})
 
-				// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
-				It("should create CatalogMetadata resources", func() {
-					catalogMetadatas := &v1alpha1.CatalogMetadataList{}
-					Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
-					Expect(catalogMetadatas.Items).To(HaveLen(3))
-					for _, catalogMetadata := range catalogMetadatas.Items {
-						Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
-						Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
-						Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
-						Expect(catalogMetadata.OwnerReferences).To(HaveLen(1))
-						Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(catalogKey.Name))
-						Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
-					}
-				})
+				if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {
+					// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
+					It("should create CatalogMetadata resources", func() {
+						catalogMetadatas := &v1alpha1.CatalogMetadataList{}
+						Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
+						Expect(catalogMetadatas.Items).To(HaveLen(3))
+						for _, catalogMetadata := range catalogMetadatas.Items {
+							Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
+							Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+							Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
+							Expect(catalogMetadata.OwnerReferences).To(HaveLen(1))
+							Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(catalogKey.Name))
+							Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
+						}
+					})
+				}
 
 			})
 		})

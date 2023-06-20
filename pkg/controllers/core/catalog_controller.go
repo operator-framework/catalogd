@@ -40,6 +40,7 @@ import (
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
+	"github.com/operator-framework/catalogd/pkg/features"
 )
 
 // TODO (everettraven): Add unit tests for the CatalogReconciler
@@ -154,8 +155,10 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
 		}
 
-		if err = r.syncCatalogMetadata(ctx, unpackResult.FS, catalog); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create catalog metadata objects: %v", err))
+		if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {
+			if err = r.syncCatalogMetadata(ctx, unpackResult.FS, catalog); err != nil {
+				return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create catalog metadata objects: %v", err))
+			}
 		}
 
 		updateStatusUnpacked(&catalog.Status, unpackResult)
@@ -462,6 +465,11 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 	return nil
 }
 
+// generateCatalogMetadataName will generate unique names for the CatalogMetadata objects that are constructed with the
+// catalog name and `meta.Schema`. Additionally, if the `meta.Package` and `meta.Name` exist, they are appended to the CatalogMetadata name.
+// In the place of the empty `meta.Name`, it computes a hash of `meta.Blob` to prevent multiple FBC blobs colliding on the the object name.
+// Possible outcomes are: "{catalogName}-{meta.Schema}-{meta.Name}", "{catalogName}-{meta.Schema}-{meta.Package}-{meta.Name}",
+// "{catalogName}-{meta.Schema}-{hash{meta.Blob}}", "{catalogName}-{meta.Schema}-{meta.Package}-{hash{meta.Blob}}".
 func generateCatalogMetadataName(ctx context.Context, catalogName string, meta *declcfg.Meta) (string, error) {
 	objName := fmt.Sprintf("%s-%s", catalogName, meta.Schema)
 	if meta.Package != "" {
