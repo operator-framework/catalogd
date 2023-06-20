@@ -147,12 +147,14 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
 		}
 
-		if err := r.syncPackages(ctx, fbc, catalog); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create package objects: %v", err))
-		}
+		if features.CatalogdFeatureGate.Enabled(features.PackagesBundleMetadataAPIs) {
+			if err := r.syncPackages(ctx, fbc, catalog); err != nil {
+				return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create package objects: %v", err))
+			}
 
-		if err := r.syncBundleMetadata(ctx, fbc, catalog); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
+			if err := r.syncBundleMetadata(ctx, fbc, catalog); err != nil {
+				return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create bundle metadata objects: %v", err))
+			}
 		}
 
 		if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {

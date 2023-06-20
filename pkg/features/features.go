@@ -9,14 +9,16 @@ const (
 	// Add new feature gates constants (strings)
 	// Ex: SomeFeature featuregate.Feature = "SomeFeature"
 
-	CatalogMetadataAPI featuregate.Feature = "CatalogMetadataAPI"
+	CatalogMetadataAPI         featuregate.Feature = "CatalogMetadataAPI"
+	PackagesBundleMetadataAPIs featuregate.Feature = "PackagesBundleMetadataAPIs"
 )
 
 var catalogdFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	// Add new feature gate definitions
 	// Ex: SomeFeature: {...}
 
-	CatalogMetadataAPI: {Default: false, PreRelease: featuregate.Alpha},
+	PackagesBundleMetadataAPIs: {Default: false, PreRelease: featuregate.Alpha},
+	CatalogMetadataAPI:         {Default: false, PreRelease: featuregate.Alpha},
 }
 
 var CatalogdFeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()

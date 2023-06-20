@@ -258,21 +258,23 @@ var _ = Describe("Catalogd Controller Test", func() {
 				})
 
 				AfterEach(func() {
-					// clean up package
-					pkg := &v1alpha1.Package{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: testPackageMetaName,
-						},
-					}
-					Expect(cl.Delete(ctx, pkg)).NotTo(HaveOccurred())
+					if features.CatalogdFeatureGate.Enabled(features.PackagesBundleMetadataAPIs) {
+						// clean up package
+						pkg := &v1alpha1.Package{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: testPackageMetaName,
+							},
+						}
+						Expect(cl.Delete(ctx, pkg)).NotTo(HaveOccurred())
 
-					// clean up bundlemetadata
-					bm := &v1alpha1.BundleMetadata{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: testBundleMetaName,
-						},
+						// clean up bundlemetadata
+						bm := &v1alpha1.BundleMetadata{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: testBundleMetaName,
+							},
+						}
+						Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
 					}
-					Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
 				})
 
 				It("should set unpacking status to 'unpacked'", func() {
@@ -287,38 +289,40 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 				})
 
-				// TODO (rashmigottipati): Add testing of BundleMetadata sync process.
-				It("should create BundleMetadata resources", func() {
-					// validate bundlemetadata resources
-					bundlemetadatas := &v1alpha1.BundleMetadataList{}
-					Expect(cl.List(ctx, bundlemetadatas)).To(Succeed())
-					Expect(bundlemetadatas.Items).To(HaveLen(1))
-					bundlemetadata := bundlemetadatas.Items[0]
-					Expect(bundlemetadata.Name).To(Equal(testBundleMetaName))
-					Expect(bundlemetadata.Spec.Image).To(Equal(testBundleImage))
-					Expect(bundlemetadata.Spec.Catalog.Name).To(Equal(catalog.Name))
-					Expect(bundlemetadata.Spec.Package).To(Equal(testPackageName))
-					Expect(bundlemetadata.Spec.RelatedImages).To(HaveLen(1))
-					Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(testBundleRelatedImageName))
-					Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(testBundleRelatedImageImage))
-					Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
-				})
+				if features.CatalogdFeatureGate.Enabled(features.PackagesBundleMetadataAPIs) {
+					// TODO (rashmigottipati): Add testing of BundleMetadata sync process.
+					It("should create BundleMetadata resources", func() {
+						// validate bundlemetadata resources
+						bundlemetadatas := &v1alpha1.BundleMetadataList{}
+						Expect(cl.List(ctx, bundlemetadatas)).To(Succeed())
+						Expect(bundlemetadatas.Items).To(HaveLen(1))
+						bundlemetadata := bundlemetadatas.Items[0]
+						Expect(bundlemetadata.Name).To(Equal(testBundleMetaName))
+						Expect(bundlemetadata.Spec.Image).To(Equal(testBundleImage))
+						Expect(bundlemetadata.Spec.Catalog.Name).To(Equal(catalog.Name))
+						Expect(bundlemetadata.Spec.Package).To(Equal(testPackageName))
+						Expect(bundlemetadata.Spec.RelatedImages).To(HaveLen(1))
+						Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(testBundleRelatedImageName))
+						Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(testBundleRelatedImageImage))
+						Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
+					})
 
-				// TODO (rashmigottipati): Add testing of Package sync process.
-				It("should create Package resources", func() {
-					// validate package resources
-					packages := &v1alpha1.PackageList{}
-					Expect(cl.List(ctx, packages)).To(Succeed())
-					Expect(packages.Items).To(HaveLen(1))
-					pack := packages.Items[0]
-					Expect(pack.Name).To(Equal(testPackageMetaName))
-					Expect(pack.Spec.DefaultChannel).To(Equal(testPackageDefaultChannel))
-					Expect(pack.Spec.Catalog.Name).To(Equal(catalog.Name))
-					Expect(pack.Spec.Channels).To(HaveLen(1))
-					Expect(pack.Spec.Channels[0].Name).To(Equal(testChannelName))
-					Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
-					Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
-				})
+					// TODO (rashmigottipati): Add testing of Package sync process.
+					It("should create Package resources", func() {
+						// validate package resources
+						packages := &v1alpha1.PackageList{}
+						Expect(cl.List(ctx, packages)).To(Succeed())
+						Expect(packages.Items).To(HaveLen(1))
+						pack := packages.Items[0]
+						Expect(pack.Name).To(Equal(testPackageMetaName))
+						Expect(pack.Spec.DefaultChannel).To(Equal(testPackageDefaultChannel))
+						Expect(pack.Spec.Catalog.Name).To(Equal(catalog.Name))
+						Expect(pack.Spec.Channels).To(HaveLen(1))
+						Expect(pack.Spec.Channels[0].Name).To(Equal(testChannelName))
+						Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
+						Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
+					})
+				}
 
 				if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {
 					// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
