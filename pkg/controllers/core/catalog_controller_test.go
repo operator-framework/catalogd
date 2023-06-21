@@ -49,6 +49,8 @@ var _ = Describe("Catalogd Controller Test", func() {
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
+		Expect(features.CatalogdFeatureGate.Set("PackagesBundleMetadataAPIs=true")).NotTo(HaveOccurred())
+		Expect(features.CatalogdFeatureGate.Set("CatalogMetadataAPI=true")).NotTo(HaveOccurred())
 		mockSource = &MockSource{}
 		reconciler = &core.CatalogReconciler{
 			Client: cl,
