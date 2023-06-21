@@ -49,8 +49,8 @@ var _ = Describe("Catalogd Controller Test", func() {
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
-		Expect(features.CatalogdFeatureGate.Set("PackagesBundleMetadataAPIs=true")).NotTo(HaveOccurred())
-		Expect(features.CatalogdFeatureGate.Set("CatalogMetadataAPI=true")).NotTo(HaveOccurred())
+		Expect(features.CatalogdFeatureGate.Set("PackagesBundleMetadataAPIs=true")).To(Succeed())
+		Expect(features.CatalogdFeatureGate.Set("CatalogMetadataAPI=true")).To(Succeed())
 		mockSource = &MockSource{}
 		reconciler = &core.CatalogReconciler{
 			Client: cl,
@@ -103,12 +103,12 @@ var _ = Describe("Catalogd Controller Test", func() {
 						},
 					},
 				}
-				Expect(cl.Create(ctx, catalog)).NotTo(HaveOccurred())
+				Expect(cl.Create(ctx, catalog)).To(Succeed())
 			})
 
 			AfterEach(func() {
 				By("tearing down cluster state")
-				Expect(cl.Delete(ctx, catalog)).NotTo(HaveOccurred())
+				Expect(cl.Delete(ctx, catalog)).To(Succeed())
 			})
 
 			It("should set unpacking status to failed and return an error", func() {
@@ -147,7 +147,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 			AfterEach(func() {
 				By("tearing down cluster state")
-				Expect(cl.Delete(ctx, catalog)).NotTo(HaveOccurred())
+				Expect(cl.Delete(ctx, catalog)).To(Succeed())
 			})
 
 			When("unpacker returns source.Result with state == 'Pending'", func() {
@@ -267,7 +267,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 								Name: testPackageMetaName,
 							},
 						}
-						Expect(cl.Delete(ctx, pkg)).NotTo(HaveOccurred())
+						Expect(cl.Delete(ctx, pkg)).To(Succeed())
 
 						// clean up bundlemetadata
 						bm := &v1alpha1.BundleMetadata{
@@ -275,14 +275,14 @@ var _ = Describe("Catalogd Controller Test", func() {
 								Name: testBundleMetaName,
 							},
 						}
-						Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
+						Expect(cl.Delete(ctx, bm)).To(Succeed())
 					}
 				})
 
 				It("should set unpacking status to 'unpacked'", func() {
 					// get the catalog and ensure status is set properly
 					cat := &v1alpha1.Catalog{}
-					Expect(cl.Get(ctx, catalogKey, cat)).ToNot(HaveOccurred())
+					Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
 					Expect(cat.Status.ResolvedSource).ToNot(BeNil())
 					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseUnpacked))
 					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
