@@ -15,5 +15,6 @@ resources:
 - ../crd
 - ../rbac
 - ../manager
+- ../server
 patches:
 - path: manager_auth_proxy_patch.yaml

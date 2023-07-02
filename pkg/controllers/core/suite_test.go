@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	catalogdv1alpha1 "github.com/operator-framework/catalogd/api/core/v1alpha1"
+	optionalv1alpha1 "github.com/operator-framework/catalogd/api/optional/v1alpha1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -67,6 +68,7 @@ var _ = BeforeSuite(func() {
 	sch = runtime.NewScheme()
 	Expect(catalogdv1alpha1.AddToScheme(sch)).To(Succeed())
 	Expect(corev1.AddToScheme(sch)).To(Succeed())
+	Expect(optionalv1alpha1.AddToScheme(sch)).To(Succeed())
 
 	cl, err = client.New(cfg, client.Options{Scheme: sch})
 	Expect(err).NotTo(HaveOccurred())

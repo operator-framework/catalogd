@@ -40,6 +40,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+	optionalv1alpha1 "github.com/operator-framework/catalogd/api/optional/v1alpha1"
+
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/features"
 )
@@ -61,7 +63,7 @@ type CatalogReconciler struct {
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=packages/finalizers,verbs=update
-//+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogmetadata,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=optional.catalogd.operatorframework.io,resources=catalogmetadatas,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=create;update;patch;delete;get;list;watch
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get;list;watch
 
@@ -387,7 +389,7 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 // by creating, updating and deleting the objects as necessary. Returns an
 // error if any are encountered.
 func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS, catalog *v1alpha1.Catalog) error {
-	newCatalogMetadataObjs := map[string]*v1alpha1.CatalogMetadata{}
+	newCatalogMetadataObjs := map[string]*optionalv1alpha1.CatalogMetadata{}
 
 	err := declcfg.WalkMetasFS(fsys, func(path string, meta *declcfg.Meta, err error) error {
 		if err != nil {
@@ -404,7 +406,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 			return fmt.Errorf("error in generating catalog metadata name: %w", err)
 		}
 
-		catalogMetadata := &v1alpha1.CatalogMetadata{
+		catalogMetadata := &optionalv1alpha1.CatalogMetadata{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: v1alpha1.GroupVersion.String(),
 				Kind:       "CatalogMetadata",
@@ -427,7 +429,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 					Controller:         pointer.Bool(true),
 				}},
 			},
-			Spec: v1alpha1.CatalogMetadataSpec{
+			Spec: optionalv1alpha1.CatalogMetadataSpec{
 				Catalog: corev1.LocalObjectReference{Name: catalog.Name},
 				Name:    meta.Name,
 				Schema:  meta.Schema,
@@ -444,7 +446,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 		return fmt.Errorf("unable to parse declarative config into CatalogMetadata API: %w", err)
 	}
 
-	var existingCatalogMetadataObjs v1alpha1.CatalogMetadataList
+	var existingCatalogMetadataObjs optionalv1alpha1.CatalogMetadataList
 	if err := r.List(ctx, &existingCatalogMetadataObjs); err != nil {
 		return fmt.Errorf("list existing catalog metadata: %v", err)
 	}
@@ -461,7 +463,7 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 	ordered := sets.List(sets.KeySet(newCatalogMetadataObjs))
 	for _, catalogMetadataName := range ordered {
 		newcatalogMetadata := newCatalogMetadataObjs[catalogMetadataName]
-		if err := r.Client.Patch(ctx, newcatalogMetadata, client.Apply, &client.PatchOptions{Force: pointer.Bool(true), FieldManager: "catalog-controller"}); err != nil {
+		if err := r.Client.Create(ctx, newcatalogMetadata); err != nil {
 			return fmt.Errorf("applying catalog metadata %q: %w", newcatalogMetadata.Name, err)
 		}
 	}

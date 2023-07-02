@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	catalogd "github.com/operator-framework/catalogd/api/core/v1alpha1"
+	catalogdoptional "github.com/operator-framework/catalogd/api/optional/v1alpha1"
 )
 
 var (
@@ -31,6 +32,8 @@ var _ = BeforeSuite(func() {
 
 	scheme := runtime.NewScheme()
 	err := catalogd.AddToScheme(scheme)
+	Expect(err).ToNot(HaveOccurred())
+	err = catalogdoptional.AddToScheme(scheme)
 	Expect(err).ToNot(HaveOccurred())
 	c, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).To(Not(HaveOccurred()))

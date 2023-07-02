@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+	optionalv1alpha1 "github.com/operator-framework/catalogd/api/optional/v1alpha1"
+
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
@@ -329,7 +331,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 				if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {
 					// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
 					It("should create CatalogMetadata resources", func() {
-						catalogMetadatas := &v1alpha1.CatalogMetadataList{}
+						catalogMetadatas := &optionalv1alpha1.CatalogMetadataList{}
 						Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
 						Expect(catalogMetadatas.Items).To(HaveLen(3))
 						for _, catalogMetadata := range catalogMetadatas.Items {

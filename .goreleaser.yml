@@ -19,6 +19,22 @@ builds:
     - arm64
     - ppc64le
     - s390x
+  - id: server
+    main: ./cmd/server/
+    binary: server
+    asmflags: "{{ .Env.GO_BUILD_ASMFLAGS }}"
+    gcflags: "{{ .Env.GO_BUILD_GCFLAGS }}"
+    ldflags: "{{ .Env.GO_BUILD_LDFLAGS }}"
+    tags:
+    - "{{ .Env.GO_BUILD_TAGS }}"
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos:
+    - linux
+    goarch:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
 dockers:
 - image_templates:
   - "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"

@@ -42,6 +42,7 @@ import (
 
 	//+kubebuilder:scaffold:imports
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+	optionalv1alpha1 "github.com/operator-framework/catalogd/api/optional/v1alpha1"
 )
 
 var (
@@ -53,6 +54,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(optionalv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

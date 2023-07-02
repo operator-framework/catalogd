@@ -1,0 +1,138 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.optional.catalogd.operatorframework.io
+  labels:
+    api: catalogd
+    apiserver: "true"
+    app.kubernetes.io/name: apiservice
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/component: apiservice
+    app.kubernetes.io/created-by: catalogd
+    app.kubernetes.io/part-of: catalogd
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    # Have cert manager inject the caBundle field using the cert we created
+    cert-manager.io/inject-ca-from: catalogd-system/catalogd-server-cert
+spec:
+  version: v1alpha1
+  group: optional.catalogd.operatorframework.io
+  groupPriorityMinimum: 1000
+  service:
+    name: catalogd-server
+    namespace: system
+  versionPriority: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: system
+  labels:
+    api: catalogd
+    apiserver: "true"
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/component: apiservice
+    app.kubernetes.io/created-by: catalogd
+    app.kubernetes.io/part-of: catalogd
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      api: catalogd
+      apiserver: "true"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        api: catalogd
+        apiserver: "true"
+    spec:
+      serviceAccountName: server
+      containers:
+      - name: etcd
+        image: quay.io/coreos/etcd:v3.4.26
+        workingDir: /tmp
+      - name: server
+        image: server:latest
+        ports:
+        - containerPort: 9443
+          name: https
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: catalogd-server-certs
+          mountPath: /server.local.config/certificates
+          readOnly: true
+        command:
+        - "./server"
+        args:
+        - "--tls-cert-file=/server.local.config/certificates/tls.crt"
+        - "--tls-private-key-file=/server.local.config/certificates/tls.key"
+        - "--secure-port=9443"
+        - "--etcd-servers=http://localhost:2379"
+        resources:
+          requests:
+            cpu: 400m
+            memory: 100Mi
+          limits:
+            cpu: 500m
+            memory: 500Mi
+      volumes:
+      - name: catalogd-server-certs
+        secret:
+          secretName: catalogd-server-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: system
+  labels:
+    api: catalogd
+    apiserver: "true"
+spec:
+  ports:
+  - port: 443
+    name: https
+    targetPort: 9443
+  selector:
+    api: catalogd
+    apiserver: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: server-secret
+  namespace: system
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    api: catalogd
+    apiserver: "true"
+  name: selfsigned-issuer
+  namespace: system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    api: catalogd
+    apiserver: "true"
+  name: server-cert
+  namespace: system
+spec:
+  dnsNames:
+  - catalogd-server.catalogd-system.svc
+  - catalogd-server.catalogd-system.svc.cluster.local
+  - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    kind: Issuer
+    name: catalogd-selfsigned-issuer
+  secretName: catalogd-server-secret
