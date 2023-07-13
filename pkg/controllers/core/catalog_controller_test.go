@@ -9,11 +9,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/format"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
@@ -42,6 +45,7 @@ func (ms *MockSource) Unpack(_ context.Context, _ *v1alpha1.Catalog) (*source.Re
 }
 
 var _ = Describe("Catalogd Controller Test", func() {
+	format.MaxLength = 0
 	var (
 		ctx        context.Context
 		reconciler *core.CatalogReconciler
@@ -49,8 +53,6 @@ var _ = Describe("Catalogd Controller Test", func() {
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
-		Expect(features.CatalogdFeatureGate.Set("PackagesBundleMetadataAPIs=true")).To(Succeed())
-		Expect(features.CatalogdFeatureGate.Set("CatalogMetadataAPI=true")).To(Succeed())
 		mockSource = &MockSource{}
 		reconciler = &core.CatalogReconciler{
 			Client: cl,
@@ -252,15 +254,39 @@ var _ = Describe("Catalogd Controller Test", func() {
 						State:          source.StateUnpacked,
 						FS:             filesys,
 					}
+				})
 
+				It("should set unpacking status to 'unpacked'", func() {
 					// reconcile
 					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 					Expect(res).To(Equal(ctrl.Result{}))
 					Expect(err).ToNot(HaveOccurred())
+
+					// get the catalog and ensure status is set properly
+					cat := &v1alpha1.Catalog{}
+					Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
+					Expect(cat.Status.ResolvedSource).ToNot(BeNil())
+					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseUnpacked))
+					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
+					Expect(cond).ToNot(BeNil())
+					Expect(cond.Reason).To(Equal(v1alpha1.ReasonUnpackSuccessful))
+					Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 				})
 
-				AfterEach(func() {
-					if features.CatalogdFeatureGate.Enabled(features.PackagesBundleMetadataAPIs) {
+				When("PackagesBundleMetadataAPIs feature gate is enabled", func() {
+					BeforeEach(func() {
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.PackagesBundleMetadataAPIs): true,
+							string(features.CatalogMetadataAPI):         false,
+						})).NotTo(HaveOccurred())
+
+						// reconcile
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					AfterEach(func() {
 						// clean up package
 						pkg := &v1alpha1.Package{
 							ObjectMeta: metav1.ObjectMeta{
@@ -276,23 +302,12 @@ var _ = Describe("Catalogd Controller Test", func() {
 							},
 						}
 						Expect(cl.Delete(ctx, bm)).To(Succeed())
-					}
-				})
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.PackagesBundleMetadataAPIs): false,
+							string(features.CatalogMetadataAPI):         false,
+						})).NotTo(HaveOccurred())
+					})
 
-				It("should set unpacking status to 'unpacked'", func() {
-					// get the catalog and ensure status is set properly
-					cat := &v1alpha1.Catalog{}
-					Expect(cl.Get(ctx, catalogKey, cat)).To(Succeed())
-					Expect(cat.Status.ResolvedSource).ToNot(BeNil())
-					Expect(cat.Status.Phase).To(Equal(v1alpha1.PhaseUnpacked))
-					cond := meta.FindStatusCondition(cat.Status.Conditions, v1alpha1.TypeUnpacked)
-					Expect(cond).ToNot(BeNil())
-					Expect(cond.Reason).To(Equal(v1alpha1.ReasonUnpackSuccessful))
-					Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-				})
-
-				if features.CatalogdFeatureGate.Enabled(features.PackagesBundleMetadataAPIs) {
-					// TODO (rashmigottipati): Add testing of BundleMetadata sync process.
 					It("should create BundleMetadata resources", func() {
 						// validate bundlemetadata resources
 						bundlemetadatas := &v1alpha1.BundleMetadataList{}
@@ -324,9 +339,101 @@ var _ = Describe("Catalogd Controller Test", func() {
 						Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
 						Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
 					})
-				}
 
-				if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {
+					It("should not delete BundleMetadata belonging to a different catalog", func() {
+						bm := &v1alpha1.BundleMetadata{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "foobar",
+								Labels: map[string]string{
+									"catalog": "notyours",
+								},
+							},
+							Spec: v1alpha1.BundleMetadataSpec{
+								Catalog:       v1.LocalObjectReference{Name: "foobar"},
+								Package:       "barfoo",
+								Image:         "notreal:latest",
+								Properties:    []v1alpha1.Property{},
+								RelatedImages: []v1alpha1.RelatedImage{},
+							},
+						}
+
+						Expect(cl.Create(ctx, bm)).NotTo(HaveOccurred())
+
+						// reconcile again to ensure the bundlemetadata still exists
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+
+						expectedBm := &v1alpha1.BundleMetadata{}
+						Expect(cl.Get(ctx, client.ObjectKeyFromObject(bm), expectedBm)).NotTo(HaveOccurred())
+						Expect(expectedBm).Should(BeEquivalentTo(bm))
+
+						// clean up
+						Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
+					})
+
+					It("should not delete Packages belonging to a different catalog", func() {
+						pack := &v1alpha1.Package{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "foobar",
+								Labels: map[string]string{
+									"catalog": "notyours",
+								},
+							},
+							Spec: v1alpha1.PackageSpec{
+								Catalog:        v1.LocalObjectReference{Name: "foobar"},
+								Name:           "barfoo",
+								Description:    "",
+								DefaultChannel: "alpha",
+								Channels: []v1alpha1.PackageChannel{
+									{
+										Name: "alpha",
+										Entries: []v1alpha1.ChannelEntry{
+											{
+												Name: "barfoo.v1.0.0",
+											},
+										},
+									},
+								},
+							},
+						}
+
+						Expect(cl.Create(ctx, pack)).NotTo(HaveOccurred())
+
+						// reconcile again to ensure the bundlemetadata still exists
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+
+						expectedPack := &v1alpha1.Package{}
+						Expect(cl.Get(ctx, client.ObjectKeyFromObject(pack), expectedPack)).NotTo(HaveOccurred())
+						Expect(expectedPack).Should(BeEquivalentTo(pack))
+
+						// clean up
+						Expect(cl.Delete(ctx, pack)).NotTo(HaveOccurred())
+					})
+				})
+
+				When("the CatalogMetadataAPI feature gate is enabled", func() {
+					BeforeEach(func() {
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.CatalogMetadataAPI): true,
+						})).NotTo(HaveOccurred())
+
+						// reconcile
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					AfterEach(func() {
+						// clean up catalogmetadata
+						Expect(cl.DeleteAllOf(ctx, &v1alpha1.CatalogMetadata{})).To(Succeed())
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.CatalogMetadataAPI): false,
+						})).NotTo(HaveOccurred())
+					})
+
 					// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
 					It("should create CatalogMetadata resources", func() {
 						catalogMetadatas := &v1alpha1.CatalogMetadataList{}
@@ -341,8 +448,34 @@ var _ = Describe("Catalogd Controller Test", func() {
 							Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
 						}
 					})
-				}
 
+					It("should not delete CatalogMetadata belonging to a different catalog", func() {
+						cm := &v1alpha1.CatalogMetadata{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "foobar",
+								Labels: map[string]string{
+									"catalog": "notyours",
+								},
+							},
+							Spec: v1alpha1.CatalogMetadataSpec{
+								Catalog: v1.LocalObjectReference{Name: "foobar"},
+								Name:    "barfoo",
+								Schema:  "catalogd.test",
+							},
+						}
+
+						Expect(cl.Create(ctx, cm)).NotTo(HaveOccurred())
+
+						// reconcile again to ensure the bundlemetadata still exists
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+
+						expectedCm := &v1alpha1.CatalogMetadata{}
+						Expect(cl.Get(ctx, client.ObjectKeyFromObject(cm), expectedCm)).NotTo(HaveOccurred())
+						Expect(expectedCm).Should(BeEquivalentTo(cm))
+					})
+				})
 			})
 		})
 
