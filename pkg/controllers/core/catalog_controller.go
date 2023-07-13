@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/pointer"
@@ -272,8 +273,9 @@ func (r *CatalogReconciler) syncBundleMetadata(ctx context.Context, declCfg *dec
 		newBundles[bundleName] = &bundleMeta
 	}
 
+	listOpts := &client.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set{"catalog": catalog.Name})}
 	var existingBundles v1alpha1.BundleMetadataList
-	if err := r.List(ctx, &existingBundles); err != nil {
+	if err := r.List(ctx, &existingBundles, listOpts); err != nil {
 		return fmt.Errorf("list existing bundle metadatas: %v", err)
 	}
 	for i := range existingBundles.Items {
@@ -359,8 +361,9 @@ func (r *CatalogReconciler) syncPackages(ctx context.Context, declCfg *declcfg.D
 		pkg.Spec.Channels = append(pkg.Spec.Channels, pkgChannel)
 	}
 
+	listOpts := &client.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set{"catalog": catalog.Name})}
 	var existingPkgs v1alpha1.PackageList
-	if err := r.List(ctx, &existingPkgs); err != nil {
+	if err := r.List(ctx, &existingPkgs, listOpts); err != nil {
 		return fmt.Errorf("list existing packages: %v", err)
 	}
 	for i := range existingPkgs.Items {
@@ -444,8 +447,9 @@ func (r *CatalogReconciler) syncCatalogMetadata(ctx context.Context, fsys fs.FS,
 		return fmt.Errorf("unable to parse declarative config into CatalogMetadata API: %w", err)
 	}
 
+	listOpts := &client.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set{"catalog": catalog.Name})}
 	var existingCatalogMetadataObjs v1alpha1.CatalogMetadataList
-	if err := r.List(ctx, &existingCatalogMetadataObjs); err != nil {
+	if err := r.List(ctx, &existingCatalogMetadataObjs, listOpts); err != nil {
 		return fmt.Errorf("list existing catalog metadata: %v", err)
 	}
 	for i, existingCatalogMetadata := range existingCatalogMetadataObjs.Items {
