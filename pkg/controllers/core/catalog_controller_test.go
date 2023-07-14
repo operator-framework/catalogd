@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -349,7 +349,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 								},
 							},
 							Spec: v1alpha1.BundleMetadataSpec{
-								Catalog:       v1.LocalObjectReference{Name: "foobar"},
+								Catalog:       corev1.LocalObjectReference{Name: "foobar"},
 								Package:       "barfoo",
 								Image:         "notreal:latest",
 								Properties:    []v1alpha1.Property{},
@@ -381,7 +381,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 								},
 							},
 							Spec: v1alpha1.PackageSpec{
-								Catalog:        v1.LocalObjectReference{Name: "foobar"},
+								Catalog:        corev1.LocalObjectReference{Name: "foobar"},
 								Name:           "barfoo",
 								Description:    "",
 								DefaultChannel: "alpha",
@@ -458,7 +458,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 								},
 							},
 							Spec: v1alpha1.CatalogMetadataSpec{
-								Catalog: v1.LocalObjectReference{Name: "foobar"},
+								Catalog: corev1.LocalObjectReference{Name: "foobar"},
 								Name:    "barfoo",
 								Schema:  "catalogd.test",
 							},
