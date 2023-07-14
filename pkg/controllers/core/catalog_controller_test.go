@@ -341,22 +341,9 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 					When("creating another Catalog", func() {
 						var (
-							tempTestBundleName              = "temp-webhook-operator.v0.0.1"
-							tempTestBundleImage             = "quay.io/olmtest/temp-webhook-operator-bundle:0.0.3"
-							tempTestBundleRelatedImageName  = "temp-test"
-							tempTestBundleRelatedImageImage = "temp-testimage:latest"
-							tempTestBundleObjectData        = "dW5pbXBvcnRhbnQK"
-							tempTestPackageDefaultChannel   = "temp-preview"
-							tempTestPackageName             = "temp-webhook-operator"
-							tempTestChannelName             = "temp-preview"
-							tempTestPackage                 = fmt.Sprintf(testPackageTemplate, tempTestPackageDefaultChannel, tempTestPackageName)
-							tempTestBundle                  = fmt.Sprintf(testBundleTemplate, tempTestBundleImage, tempTestBundleName, tempTestPackageName, tempTestBundleRelatedImageName, tempTestBundleRelatedImageImage, tempTestBundleObjectData)
-							tempTestChannel                 = fmt.Sprintf(testChannelTemplate, tempTestPackageName, tempTestChannelName, tempTestBundleName)
-							tempCatalog                     *v1alpha1.Catalog
-							tempMs                          *MockSource
-							tempRec                         *core.CatalogReconciler
-							tempTestBundleMetaName          string
-							tempTestPackageMetaName         string
+							tempCatalog             *v1alpha1.Catalog
+							tempTestBundleMetaName  string
+							tempTestPackageMetaName string
 						)
 						BeforeEach(func() {
 							tempCatalog = &v1alpha1.Catalog{
@@ -371,33 +358,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 								},
 							}
 
-							tempTestBundleMetaName = fmt.Sprintf("%s-%s", tempCatalog.Name, tempTestBundleName)
-							tempTestPackageMetaName = fmt.Sprintf("%s-%s", tempCatalog.Name, tempTestPackageName)
+							tempTestBundleMetaName = fmt.Sprintf("%s-%s", tempCatalog.Name, testBundleName)
+							tempTestPackageMetaName = fmt.Sprintf("%s-%s", tempCatalog.Name, testPackageName)
 
-							tempMs = &MockSource{}
-							filesys := &fstest.MapFS{
-								"bundle.yaml":  &fstest.MapFile{Data: []byte(tempTestBundle), Mode: os.ModePerm},
-								"package.yaml": &fstest.MapFile{Data: []byte(tempTestPackage), Mode: os.ModePerm},
-								"channel.yaml": &fstest.MapFile{Data: []byte(tempTestChannel), Mode: os.ModePerm},
-							}
-
-							tempMs.shouldError = false
-							tempMs.result = &source.Result{
-								ResolvedSource: &catalog.Spec.Source,
-								State:          source.StateUnpacked,
-								FS:             filesys,
-							}
-
-							tempRec = &core.CatalogReconciler{
-								Client: cl,
-								Unpacker: source.NewUnpacker(
-									map[v1alpha1.SourceType]source.Unpacker{
-										v1alpha1.SourceTypeImage: tempMs,
-									},
-								),
-							}
 							Expect(cl.Create(ctx, tempCatalog)).To(Succeed())
-							res, err := tempRec.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
+							res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
 							Expect(res).To(Equal(ctrl.Result{}))
 							Expect(err).ToNot(HaveOccurred())
 						})
@@ -421,12 +386,12 @@ var _ = Describe("Catalogd Controller Test", func() {
 							bundlemetadata = &v1alpha1.BundleMetadata{}
 							Expect(cl.Get(ctx, client.ObjectKey{Name: tempTestBundleMetaName}, bundlemetadata)).To(Succeed())
 							Expect(bundlemetadata.Name).To(Equal(tempTestBundleMetaName))
-							Expect(bundlemetadata.Spec.Image).To(Equal(tempTestBundleImage))
+							Expect(bundlemetadata.Spec.Image).To(Equal(testBundleImage))
 							Expect(bundlemetadata.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
-							Expect(bundlemetadata.Spec.Package).To(Equal(tempTestPackageName))
+							Expect(bundlemetadata.Spec.Package).To(Equal(testPackageName))
 							Expect(bundlemetadata.Spec.RelatedImages).To(HaveLen(1))
-							Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(tempTestBundleRelatedImageName))
-							Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(tempTestBundleRelatedImageImage))
+							Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(testBundleRelatedImageName))
+							Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(testBundleRelatedImageImage))
 							Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
 						})
 
@@ -445,12 +410,12 @@ var _ = Describe("Catalogd Controller Test", func() {
 							pack = &v1alpha1.Package{}
 							Expect(cl.Get(ctx, client.ObjectKey{Name: tempTestPackageMetaName}, pack)).To(Succeed())
 							Expect(pack.Name).To(Equal(tempTestPackageMetaName))
-							Expect(pack.Spec.DefaultChannel).To(Equal(tempTestPackageDefaultChannel))
+							Expect(pack.Spec.DefaultChannel).To(Equal(testPackageDefaultChannel))
 							Expect(pack.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
 							Expect(pack.Spec.Channels).To(HaveLen(1))
-							Expect(pack.Spec.Channels[0].Name).To(Equal(tempTestChannelName))
+							Expect(pack.Spec.Channels[0].Name).To(Equal(testChannelName))
 							Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
-							Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(tempTestBundleName))
+							Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
 						})
 					})
 				})
@@ -492,20 +457,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 					When("creating another Catalog", func() {
 						var (
-							tempTestBundleName              = "temp-webhook-operator.v0.0.1"
-							tempTestBundleImage             = "quay.io/olmtest/temp-webhook-operator-bundle:0.0.3"
-							tempTestBundleRelatedImageName  = "temp-test"
-							tempTestBundleRelatedImageImage = "temp-testimage:latest"
-							tempTestBundleObjectData        = "dW5pbXBvcnRhbnQK"
-							tempTestPackageDefaultChannel   = "temp-preview"
-							tempTestPackageName             = "temp-webhook-operator"
-							tempTestChannelName             = "temp-preview"
-							tempTestPackage                 = fmt.Sprintf(testPackageTemplate, tempTestPackageDefaultChannel, tempTestPackageName)
-							tempTestBundle                  = fmt.Sprintf(testBundleTemplate, tempTestBundleImage, tempTestBundleName, tempTestPackageName, tempTestBundleRelatedImageName, tempTestBundleRelatedImageImage, tempTestBundleObjectData)
-							tempTestChannel                 = fmt.Sprintf(testChannelTemplate, tempTestPackageName, tempTestChannelName, tempTestBundleName)
-							tempCatalog                     *v1alpha1.Catalog
-							tempMs                          *MockSource
-							tempRec                         *core.CatalogReconciler
+							tempCatalog *v1alpha1.Catalog
 						)
 						BeforeEach(func() {
 							tempCatalog = &v1alpha1.Catalog{
@@ -520,30 +472,8 @@ var _ = Describe("Catalogd Controller Test", func() {
 								},
 							}
 
-							tempMs = &MockSource{}
-							filesys := &fstest.MapFS{
-								"bundle.yaml":  &fstest.MapFile{Data: []byte(tempTestBundle), Mode: os.ModePerm},
-								"package.yaml": &fstest.MapFile{Data: []byte(tempTestPackage), Mode: os.ModePerm},
-								"channel.yaml": &fstest.MapFile{Data: []byte(tempTestChannel), Mode: os.ModePerm},
-							}
-
-							tempMs.shouldError = false
-							tempMs.result = &source.Result{
-								ResolvedSource: &catalog.Spec.Source,
-								State:          source.StateUnpacked,
-								FS:             filesys,
-							}
-
-							tempRec = &core.CatalogReconciler{
-								Client: cl,
-								Unpacker: source.NewUnpacker(
-									map[v1alpha1.SourceType]source.Unpacker{
-										v1alpha1.SourceTypeImage: tempMs,
-									},
-								),
-							}
 							Expect(cl.Create(ctx, tempCatalog)).To(Succeed())
-							res, err := tempRec.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
+							res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
 							Expect(res).To(Equal(ctrl.Result{}))
 							Expect(err).ToNot(HaveOccurred())
 						})
