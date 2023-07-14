@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -340,77 +339,119 @@ var _ = Describe("Catalogd Controller Test", func() {
 						Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
 					})
 
-					It("should not delete BundleMetadata belonging to a different catalog", func() {
-						bm := &v1alpha1.BundleMetadata{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "foobar",
-								Labels: map[string]string{
-									"catalog": "notyours",
-								},
-							},
-							Spec: v1alpha1.BundleMetadataSpec{
-								Catalog:       corev1.LocalObjectReference{Name: "foobar"},
-								Package:       "barfoo",
-								Image:         "notreal:latest",
-								Properties:    []v1alpha1.Property{},
-								RelatedImages: []v1alpha1.RelatedImage{},
-							},
-						}
-
-						Expect(cl.Create(ctx, bm)).NotTo(HaveOccurred())
-
-						// reconcile again to ensure the bundlemetadata still exists
-						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
-						Expect(res).To(Equal(ctrl.Result{}))
-						Expect(err).ToNot(HaveOccurred())
-
-						expectedBm := &v1alpha1.BundleMetadata{}
-						Expect(cl.Get(ctx, client.ObjectKeyFromObject(bm), expectedBm)).NotTo(HaveOccurred())
-						Expect(expectedBm).Should(BeEquivalentTo(bm))
-
-						// clean up
-						Expect(cl.Delete(ctx, bm)).NotTo(HaveOccurred())
-					})
-
-					It("should not delete Packages belonging to a different catalog", func() {
-						pack := &v1alpha1.Package{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "foobar",
-								Labels: map[string]string{
-									"catalog": "notyours",
-								},
-							},
-							Spec: v1alpha1.PackageSpec{
-								Catalog:        corev1.LocalObjectReference{Name: "foobar"},
-								Name:           "barfoo",
-								Description:    "",
-								DefaultChannel: "alpha",
-								Channels: []v1alpha1.PackageChannel{
-									{
-										Name: "alpha",
-										Entries: []v1alpha1.ChannelEntry{
-											{
-												Name: "barfoo.v1.0.0",
-											},
+					When("creating another Catalog", func() {
+						var (
+							tempTestBundleName              = "temp-webhook-operator.v0.0.1"
+							tempTestBundleImage             = "quay.io/olmtest/temp-webhook-operator-bundle:0.0.3"
+							tempTestBundleRelatedImageName  = "temp-test"
+							tempTestBundleRelatedImageImage = "temp-testimage:latest"
+							tempTestBundleObjectData        = "dW5pbXBvcnRhbnQK"
+							tempTestPackageDefaultChannel   = "temp-preview"
+							tempTestPackageName             = "temp-webhook-operator"
+							tempTestChannelName             = "temp-preview"
+							tempTestPackage                 = fmt.Sprintf(testPackageTemplate, tempTestPackageDefaultChannel, tempTestPackageName)
+							tempTestBundle                  = fmt.Sprintf(testBundleTemplate, tempTestBundleImage, tempTestBundleName, tempTestPackageName, tempTestBundleRelatedImageName, tempTestBundleRelatedImageImage, tempTestBundleObjectData)
+							tempTestChannel                 = fmt.Sprintf(testChannelTemplate, tempTestPackageName, tempTestChannelName, tempTestBundleName)
+							tempCatalog                     *v1alpha1.Catalog
+							tempMs                          *MockSource
+							tempRec                         *core.CatalogReconciler
+							tempTestBundleMetaName          string
+							tempTestPackageMetaName         string
+						)
+						BeforeEach(func() {
+							tempCatalog = &v1alpha1.Catalog{
+								ObjectMeta: metav1.ObjectMeta{Name: "tempedout"},
+								Spec: v1alpha1.CatalogSpec{
+									Source: v1alpha1.CatalogSource{
+										Type: "image",
+										Image: &v1alpha1.ImageSource{
+											Ref: "somecatalog:latest",
 										},
 									},
 								},
-							},
-						}
+							}
 
-						Expect(cl.Create(ctx, pack)).NotTo(HaveOccurred())
+							tempTestBundleMetaName = fmt.Sprintf("%s-%s", tempCatalog.Name, tempTestBundleName)
+							tempTestPackageMetaName = fmt.Sprintf("%s-%s", tempCatalog.Name, tempTestPackageName)
 
-						// reconcile again to ensure the bundlemetadata still exists
-						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
-						Expect(res).To(Equal(ctrl.Result{}))
-						Expect(err).ToNot(HaveOccurred())
+							tempMs = &MockSource{}
+							filesys := &fstest.MapFS{
+								"bundle.yaml":  &fstest.MapFile{Data: []byte(tempTestBundle), Mode: os.ModePerm},
+								"package.yaml": &fstest.MapFile{Data: []byte(tempTestPackage), Mode: os.ModePerm},
+								"channel.yaml": &fstest.MapFile{Data: []byte(tempTestChannel), Mode: os.ModePerm},
+							}
 
-						expectedPack := &v1alpha1.Package{}
-						Expect(cl.Get(ctx, client.ObjectKeyFromObject(pack), expectedPack)).NotTo(HaveOccurred())
-						Expect(expectedPack).Should(BeEquivalentTo(pack))
+							tempMs.shouldError = false
+							tempMs.result = &source.Result{
+								ResolvedSource: &catalog.Spec.Source,
+								State:          source.StateUnpacked,
+								FS:             filesys,
+							}
 
-						// clean up
-						Expect(cl.Delete(ctx, pack)).NotTo(HaveOccurred())
+							tempRec = &core.CatalogReconciler{
+								Client: cl,
+								Unpacker: source.NewUnpacker(
+									map[v1alpha1.SourceType]source.Unpacker{
+										v1alpha1.SourceTypeImage: tempMs,
+									},
+								),
+							}
+							Expect(cl.Create(ctx, tempCatalog)).To(Succeed())
+							res, err := tempRec.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
+							Expect(res).To(Equal(ctrl.Result{}))
+							Expect(err).ToNot(HaveOccurred())
+						})
+
+						AfterEach(func() {
+							Expect(cl.Delete(ctx, tempCatalog)).NotTo(HaveOccurred())
+						})
+
+						It("should not delete BundleMetadata belonging to a different catalog", func() {
+							bundlemetadata := &v1alpha1.BundleMetadata{}
+							Expect(cl.Get(ctx, client.ObjectKey{Name: testBundleMetaName}, bundlemetadata)).To(Succeed())
+							Expect(bundlemetadata.Name).To(Equal(testBundleMetaName))
+							Expect(bundlemetadata.Spec.Image).To(Equal(testBundleImage))
+							Expect(bundlemetadata.Spec.Catalog.Name).To(Equal(catalog.Name))
+							Expect(bundlemetadata.Spec.Package).To(Equal(testPackageName))
+							Expect(bundlemetadata.Spec.RelatedImages).To(HaveLen(1))
+							Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(testBundleRelatedImageName))
+							Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(testBundleRelatedImageImage))
+							Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
+
+							bundlemetadata = &v1alpha1.BundleMetadata{}
+							Expect(cl.Get(ctx, client.ObjectKey{Name: tempTestBundleMetaName}, bundlemetadata)).To(Succeed())
+							Expect(bundlemetadata.Name).To(Equal(tempTestBundleMetaName))
+							Expect(bundlemetadata.Spec.Image).To(Equal(tempTestBundleImage))
+							Expect(bundlemetadata.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
+							Expect(bundlemetadata.Spec.Package).To(Equal(tempTestPackageName))
+							Expect(bundlemetadata.Spec.RelatedImages).To(HaveLen(1))
+							Expect(bundlemetadata.Spec.RelatedImages[0].Name).To(Equal(tempTestBundleRelatedImageName))
+							Expect(bundlemetadata.Spec.RelatedImages[0].Image).To(Equal(tempTestBundleRelatedImageImage))
+							Expect(bundlemetadata.Spec.Properties).To(HaveLen(1))
+						})
+
+						It("should not delete Packages belonging to a different catalog", func() {
+							// validate package resources
+							pack := &v1alpha1.Package{}
+							Expect(cl.Get(ctx, client.ObjectKey{Name: testPackageMetaName}, pack)).To(Succeed())
+							Expect(pack.Name).To(Equal(testPackageMetaName))
+							Expect(pack.Spec.DefaultChannel).To(Equal(testPackageDefaultChannel))
+							Expect(pack.Spec.Catalog.Name).To(Equal(catalog.Name))
+							Expect(pack.Spec.Channels).To(HaveLen(1))
+							Expect(pack.Spec.Channels[0].Name).To(Equal(testChannelName))
+							Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
+							Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(testBundleName))
+
+							pack = &v1alpha1.Package{}
+							Expect(cl.Get(ctx, client.ObjectKey{Name: tempTestPackageMetaName}, pack)).To(Succeed())
+							Expect(pack.Name).To(Equal(tempTestPackageMetaName))
+							Expect(pack.Spec.DefaultChannel).To(Equal(tempTestPackageDefaultChannel))
+							Expect(pack.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
+							Expect(pack.Spec.Channels).To(HaveLen(1))
+							Expect(pack.Spec.Channels[0].Name).To(Equal(tempTestChannelName))
+							Expect(pack.Spec.Channels[0].Entries).To(HaveLen(1))
+							Expect(pack.Spec.Channels[0].Entries[0].Name).To(Equal(tempTestBundleName))
+						})
 					})
 				})
 
@@ -449,36 +490,96 @@ var _ = Describe("Catalogd Controller Test", func() {
 						}
 					})
 
-					It("should not delete CatalogMetadata belonging to a different catalog", func() {
-						cm := &v1alpha1.CatalogMetadata{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "foobar",
-								Labels: map[string]string{
-									"catalog": "notyours",
+					When("creating another Catalog", func() {
+						var (
+							tempTestBundleName              = "temp-webhook-operator.v0.0.1"
+							tempTestBundleImage             = "quay.io/olmtest/temp-webhook-operator-bundle:0.0.3"
+							tempTestBundleRelatedImageName  = "temp-test"
+							tempTestBundleRelatedImageImage = "temp-testimage:latest"
+							tempTestBundleObjectData        = "dW5pbXBvcnRhbnQK"
+							tempTestPackageDefaultChannel   = "temp-preview"
+							tempTestPackageName             = "temp-webhook-operator"
+							tempTestChannelName             = "temp-preview"
+							tempTestPackage                 = fmt.Sprintf(testPackageTemplate, tempTestPackageDefaultChannel, tempTestPackageName)
+							tempTestBundle                  = fmt.Sprintf(testBundleTemplate, tempTestBundleImage, tempTestBundleName, tempTestPackageName, tempTestBundleRelatedImageName, tempTestBundleRelatedImageImage, tempTestBundleObjectData)
+							tempTestChannel                 = fmt.Sprintf(testChannelTemplate, tempTestPackageName, tempTestChannelName, tempTestBundleName)
+							tempCatalog                     *v1alpha1.Catalog
+							tempMs                          *MockSource
+							tempRec                         *core.CatalogReconciler
+						)
+						BeforeEach(func() {
+							tempCatalog = &v1alpha1.Catalog{
+								ObjectMeta: metav1.ObjectMeta{Name: "tempedout"},
+								Spec: v1alpha1.CatalogSpec{
+									Source: v1alpha1.CatalogSource{
+										Type: "image",
+										Image: &v1alpha1.ImageSource{
+											Ref: "somecatalog:latest",
+										},
+									},
 								},
-							},
-							Spec: v1alpha1.CatalogMetadataSpec{
-								Catalog: corev1.LocalObjectReference{Name: "foobar"},
-								Name:    "barfoo",
-								Schema:  "catalogd.test",
-							},
-						}
+							}
 
-						Expect(cl.Create(ctx, cm)).NotTo(HaveOccurred())
+							tempMs = &MockSource{}
+							filesys := &fstest.MapFS{
+								"bundle.yaml":  &fstest.MapFile{Data: []byte(tempTestBundle), Mode: os.ModePerm},
+								"package.yaml": &fstest.MapFile{Data: []byte(tempTestPackage), Mode: os.ModePerm},
+								"channel.yaml": &fstest.MapFile{Data: []byte(tempTestChannel), Mode: os.ModePerm},
+							}
 
-						// reconcile again to ensure the bundlemetadata still exists
-						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
-						Expect(res).To(Equal(ctrl.Result{}))
-						Expect(err).ToNot(HaveOccurred())
+							tempMs.shouldError = false
+							tempMs.result = &source.Result{
+								ResolvedSource: &catalog.Spec.Source,
+								State:          source.StateUnpacked,
+								FS:             filesys,
+							}
 
-						expectedCm := &v1alpha1.CatalogMetadata{}
-						Expect(cl.Get(ctx, client.ObjectKeyFromObject(cm), expectedCm)).NotTo(HaveOccurred())
-						Expect(expectedCm).Should(BeEquivalentTo(cm))
+							tempRec = &core.CatalogReconciler{
+								Client: cl,
+								Unpacker: source.NewUnpacker(
+									map[v1alpha1.SourceType]source.Unpacker{
+										v1alpha1.SourceTypeImage: tempMs,
+									},
+								),
+							}
+							Expect(cl.Create(ctx, tempCatalog)).To(Succeed())
+							res, err := tempRec.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
+							Expect(res).To(Equal(ctrl.Result{}))
+							Expect(err).ToNot(HaveOccurred())
+						})
+
+						AfterEach(func() {
+							Expect(cl.Delete(ctx, tempCatalog)).NotTo(HaveOccurred())
+						})
+
+						It("should not delete CatalogMetadata belonging to a different catalog", func() {
+							catalogMetadatas := &v1alpha1.CatalogMetadataList{}
+							Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
+							Expect(catalogMetadatas.Items).To(HaveLen(6))
+							for _, catalogMetadata := range catalogMetadatas.Items {
+								for _, or := range catalogMetadata.GetOwnerReferences() {
+									if or.Kind == "Catalog" {
+										if or.Name == catalogKey.Name {
+											Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
+											Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+											Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
+											Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
+											break
+										} else if or.Name == tempCatalog.Name {
+											Expect(catalogMetadata.Name).To(ContainSubstring(tempCatalog.Name))
+											Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+											Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
+											Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
+											break
+										}
+									}
+								}
+							}
+						})
 					})
 				})
 			})
 		})
-
 	})
 })
 
