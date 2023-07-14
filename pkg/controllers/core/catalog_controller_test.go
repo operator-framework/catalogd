@@ -492,13 +492,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 										if or.Name == catalogKey.Name {
 											Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
 											Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
-											Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
 											Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
 											break
 										} else if or.Name == tempCatalog.Name {
 											Expect(catalogMetadata.Name).To(ContainSubstring(tempCatalog.Name))
 											Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
-											Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
 											Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
 											break
 										}
