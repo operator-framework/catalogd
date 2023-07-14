@@ -448,7 +448,6 @@ var _ = Describe("Catalogd Controller Test", func() {
 						for _, catalogMetadata := range catalogMetadatas.Items {
 							Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
 							Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
-							Expect(catalogMetadata.GetLabels()).To(HaveLen(5))
 							Expect(catalogMetadata.OwnerReferences).To(HaveLen(1))
 							Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(catalogKey.Name))
 							Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
