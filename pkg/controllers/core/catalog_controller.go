@@ -41,6 +41,7 @@ import (
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
+	"github.com/operator-framework/catalogd/internal/storage"
 	"github.com/operator-framework/catalogd/pkg/features"
 )
 
@@ -50,6 +51,7 @@ import (
 type CatalogReconciler struct {
 	client.Client
 	Unpacker source.Unpacker
+	Storage  storage.Storage
 }
 
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogs,verbs=get;list;watch;create;update;patch;delete
@@ -161,6 +163,12 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		if features.CatalogdFeatureGate.Enabled(features.CatalogMetadataAPI) {
 			if err = r.syncCatalogMetadata(ctx, unpackResult.FS, catalog); err != nil {
 				return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("create catalog metadata objects: %v", err))
+			}
+		}
+
+		if features.CatalogdFeatureGate.Enabled(features.HttpServer) {
+			if err = r.Storage.Store(ctx, catalog, unpackResult.FS); err != nil {
+				return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("storing catalog: %v", err))
 			}
 		}
 

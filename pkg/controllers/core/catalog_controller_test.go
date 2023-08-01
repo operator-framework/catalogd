@@ -506,6 +506,146 @@ var _ = Describe("Catalogd Controller Test", func() {
 					})
 				})
 			})
+
+			When("the CatalogMetadataAPI feature gate is enabled", func() {
+				BeforeEach(func() {
+					Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+						string(features.CatalogMetadataAPI): true,
+					})).NotTo(HaveOccurred())
+
+					// reconcile
+					res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+					Expect(res).To(Equal(ctrl.Result{}))
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				AfterEach(func() {
+					// clean up catalogmetadata
+					Expect(cl.DeleteAllOf(ctx, &v1alpha1.CatalogMetadata{})).To(Succeed())
+					Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+						string(features.CatalogMetadataAPI): false,
+					})).NotTo(HaveOccurred())
+				})
+
+				// TODO (rashmigottipati): Add testing of CatalogMetadata sync process.
+				It("should create CatalogMetadata resources", func() {
+					catalogMetadatas := &v1alpha1.CatalogMetadataList{}
+					Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
+					Expect(catalogMetadatas.Items).To(HaveLen(3))
+					for _, catalogMetadata := range catalogMetadatas.Items {
+						Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
+						Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+						Expect(catalogMetadata.OwnerReferences).To(HaveLen(1))
+						Expect(catalogMetadata.OwnerReferences[0].Name).To(Equal(catalogKey.Name))
+						Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
+					}
+				})
+
+				When("creating another Catalog", func() {
+					var (
+						tempCatalog *v1alpha1.Catalog
+					)
+					BeforeEach(func() {
+						tempCatalog = &v1alpha1.Catalog{
+							ObjectMeta: metav1.ObjectMeta{Name: "tempedout"},
+							Spec: v1alpha1.CatalogSpec{
+								Source: v1alpha1.CatalogSource{
+									Type: "image",
+									Image: &v1alpha1.ImageSource{
+										Ref: "somecatalog:latest",
+									},
+								},
+							},
+						}
+
+						Expect(cl.Create(ctx, tempCatalog)).To(Succeed())
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					AfterEach(func() {
+						Expect(cl.Delete(ctx, tempCatalog)).NotTo(HaveOccurred())
+					})
+
+					It("should not delete CatalogMetadata belonging to a different catalog", func() {
+						catalogMetadatas := &v1alpha1.CatalogMetadataList{}
+						Expect(cl.List(ctx, catalogMetadatas)).To(Succeed())
+						Expect(catalogMetadatas.Items).To(HaveLen(6))
+						for _, catalogMetadata := range catalogMetadatas.Items {
+							for _, or := range catalogMetadata.GetOwnerReferences() {
+								if or.Kind == "Catalog" {
+									if or.Name == catalogKey.Name {
+										Expect(catalogMetadata.Name).To(ContainSubstring(catalogKey.Name))
+										Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+										Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(catalogKey.Name))
+										break
+									} else if or.Name == tempCatalog.Name {
+										Expect(catalogMetadata.Name).To(ContainSubstring(tempCatalog.Name))
+										Expect(catalogMetadata.Kind).To(Equal("CatalogMetadata"))
+										Expect(catalogMetadata.Spec.Catalog.Name).To(Equal(tempCatalog.Name))
+										break
+									}
+								}
+							}
+						}
+					})
+				})
+
+				// TODO(everettraven): Implement proper testing logic when there is an implementation to test
+				When("the HttpServer feature gate is enabled", func() {
+					BeforeEach(func() {
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.HttpServer): true,
+						})).NotTo(HaveOccurred())
+
+						// reconcile
+						// res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						// Expect(res).To(Equal(ctrl.Result{}))
+						// Expect(err).ToNot(HaveOccurred())
+					})
+
+					AfterEach(func() {
+						// clean up catalogmetadata
+						// Expect(cl.DeleteAllOf(ctx, &v1alpha1.CatalogMetadata{})).To(Succeed())
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.HttpServer): false,
+						})).NotTo(HaveOccurred())
+					})
+
+					It("should do something", func() {})
+
+					When("creating another Catalog", func() {
+						var (
+						// tempCatalog *v1alpha1.Catalog
+						)
+						BeforeEach(func() {
+							// tempCatalog = &v1alpha1.Catalog{
+							// 	ObjectMeta: metav1.ObjectMeta{Name: "tempedout"},
+							// 	Spec: v1alpha1.CatalogSpec{
+							// 		Source: v1alpha1.CatalogSource{
+							// 			Type: "image",
+							// 			Image: &v1alpha1.ImageSource{
+							// 				Ref: "somecatalog:latest",
+							// 			},
+							// 		},
+							// 	},
+							// }
+
+							// Expect(cl.Create(ctx, tempCatalog)).To(Succeed())
+							// res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: types.NamespacedName{Name: "tempedout"}})
+							// Expect(res).To(Equal(ctrl.Result{}))
+							// Expect(err).ToNot(HaveOccurred())
+						})
+
+						AfterEach(func() {
+							// Expect(cl.Delete(ctx, tempCatalog)).NotTo(HaveOccurred())
+						})
+
+						It("should do something", func() {})
+					})
+				})
+			})
 		})
 	})
 })

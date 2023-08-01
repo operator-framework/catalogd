@@ -11,6 +11,7 @@ const (
 
 	CatalogMetadataAPI         featuregate.Feature = "CatalogMetadataAPI"
 	PackagesBundleMetadataAPIs featuregate.Feature = "PackagesBundleMetadataAPIs"
+	HttpServer                 featuregate.Feature = "HttpServer"
 )
 
 var catalogdFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
@@ -19,6 +20,7 @@ var catalogdFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 
 	PackagesBundleMetadataAPIs: {Default: false, PreRelease: featuregate.Deprecated},
 	CatalogMetadataAPI:         {Default: false, PreRelease: featuregate.Alpha},
+	HttpServer:                 {Default: false, PreRelease: featuregate.Alpha},
 }
 
 var CatalogdFeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()

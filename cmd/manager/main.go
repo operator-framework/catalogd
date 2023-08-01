@@ -35,6 +35,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/operator-framework/catalogd/internal/source"
+	"github.com/operator-framework/catalogd/internal/storage"
 	"github.com/operator-framework/catalogd/internal/version"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
@@ -116,9 +117,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	store := &storage.TempStorage{}
+
 	if err = (&corecontrollers.CatalogReconciler{
 		Client:   mgr.GetClient(),
 		Unpacker: unpacker,
+		Storage:  store,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Catalog")
 		os.Exit(1)
@@ -132,6 +136,13 @@ func main() {
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	if features.CatalogdFeatureGate.Enabled(features.HttpServer) {
+		if err := mgr.AddMetricsExtraHandler("/storage/", store); err != nil {
+			setupLog.Error(err, "unable to set up storage")
+			os.Exit(1)
+		}
 	}
 
 	if profiling {
