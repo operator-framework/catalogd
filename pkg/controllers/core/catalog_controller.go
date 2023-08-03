@@ -43,6 +43,7 @@ import (
 	"github.com/operator-framework/catalogd/internal/k8sutil"
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/features"
+	"github.com/operator-framework/catalogd/pkg/storage"
 )
 
 // TODO (everettraven): Add unit tests for the CatalogReconciler
@@ -51,6 +52,7 @@ import (
 type CatalogReconciler struct {
 	client.Client
 	Unpacker source.Unpacker
+	Storage  storage.Storage
 }
 
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogs,verbs=get;list;watch;create;update;patch;delete
@@ -145,6 +147,9 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   of the unpacking steps.
 
 		fbc, err := declcfg.LoadFS(unpackResult.FS)
+		if err := r.Storage.Store(ctx, catalog, fbc); err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("storing fbc: %v", err))
+		}
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
 		}
