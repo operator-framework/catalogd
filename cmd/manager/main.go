@@ -36,6 +36,7 @@ import (
 
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/version"
+	catlaogserver "github.com/operator-framework/catalogd/pkg/catalogserver"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/profile"
@@ -67,6 +68,7 @@ func main() {
 		catalogdVersion      bool
 		systemNamespace      string
 		storageDir           string
+		serverPort           string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -77,6 +79,7 @@ func main() {
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "The namespace catalogd uses for internal state, configuration, and workloads")
 	flag.StringVar(&storageDir, "catalogs-storage-dir", "/var/cache", "The directory in the filesystem where unpacked catalog content will be stored and served from")
+	flag.StringVar(&serverPort, "catalogs-server-port", ":8083", "The port where the unpacked catalogs' content will be accessible")
 	flag.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
 	flag.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
 	opts := zap.Options{
@@ -119,10 +122,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	catalogServer := catlaogserver.NewServer(storageDir, serverPort)
+	if err := mgr.Add(catalogServer); err != nil {
+		setupLog.Error(err, "unable to start catalog server")
+		os.Exit(1)
+	}
+
 	if err = (&corecontrollers.CatalogReconciler{
 		Client:   mgr.GetClient(),
 		Unpacker: unpacker,
-		Storage:  storage.NewStorage(storageDir),
+		Storage:  storage.NewStorage(storageDir, catalogServer.Mux),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Catalog")
 		os.Exit(1)
@@ -145,7 +154,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

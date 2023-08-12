@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"testing/fstest"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
+	"github.com/operator-framework/catalogd/pkg/storage"
 )
 
 var _ source.Unpacker = &MockSource{}
@@ -52,6 +54,8 @@ var _ = Describe("Catalogd Controller Test", func() {
 		mockSource *MockSource
 	)
 	BeforeEach(func() {
+		tmpDir, err := os.MkdirTemp(GinkgoT().TempDir(), "cache")
+		Expect(err).ToNot(HaveOccurred())
 		ctx = context.Background()
 		mockSource = &MockSource{}
 		reconciler = &core.CatalogReconciler{
@@ -61,6 +65,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					v1alpha1.SourceTypeImage: mockSource,
 				},
 			),
+			Storage: storage.NewStorage(tmpDir, http.NewServeMux()),
 		}
 	})
 

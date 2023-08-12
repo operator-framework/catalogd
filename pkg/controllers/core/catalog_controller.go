@@ -36,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -46,7 +47,7 @@ import (
 	"github.com/operator-framework/catalogd/pkg/storage"
 )
 
-// TODO (everettraven): Add unit tests for the CatalogReconciler
+const fbcDeletionFinalizer = "operator-framework.catalogd/localstore"
 
 // CatalogReconciler reconciles a Catalog object
 type CatalogReconciler struct {
@@ -81,7 +82,27 @@ func (r *CatalogReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.Client.Get(ctx, req.NamespacedName, &existingCatsrc); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
+	if existingCatsrc.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(&existingCatsrc, fbcDeletionFinalizer) {
+			controllerutil.AddFinalizer(&existingCatsrc, fbcDeletionFinalizer)
+			if err := r.Update(ctx, &existingCatsrc); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(&existingCatsrc, fbcDeletionFinalizer) {
+			err := r.Storage.Delete(existingCatsrc.Name)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(&existingCatsrc, fbcDeletionFinalizer)
+			if err := r.Update(ctx, &existingCatsrc); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
 	reconciledCatsrc := existingCatsrc.DeepCopy()
 	res, reconcileErr := r.reconcile(ctx, reconciledCatsrc)
 
@@ -147,8 +168,8 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 		//   of the unpacking steps.
 
 		fbc, err := declcfg.LoadFS(unpackResult.FS)
-		if err := r.Storage.Store(ctx, catalog, fbc); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("storing fbc: %v", err))
+		if err := r.Storage.Store(catalog.Name, fbc); err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("error storing fbc: %v", err))
 		}
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))

@@ -47,8 +47,17 @@ spec:
         - "./manager"
         args:
         - --leader-elect
+        - "--catalogs-storage-dir=/var/cache"
+        - "--catalogs-server-port=:8083"
         image: controller:latest
         name: manager
+        ports:
+            - containerPort: 8083
+              protocol: TCP
+              name: https
+        volumeMounts:
+            - name: catalog-cache
+              mountPath: /var/cache/
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -73,3 +82,6 @@ spec:
         imagePullPolicy: IfNotPresent
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: catalog-cache
+          emptyDir: {}
