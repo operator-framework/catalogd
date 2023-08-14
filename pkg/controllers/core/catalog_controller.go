@@ -82,28 +82,19 @@ func (r *CatalogReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.Client.Get(ctx, req.NamespacedName, &existingCatsrc); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	if features.CatalogdFeatureGate.Enabled(features.HTTPServer) {
-		if existingCatsrc.DeletionTimestamp.IsZero() {
-			if !controllerutil.ContainsFinalizer(&existingCatsrc, fbcDeletionFinalizer) {
-				controllerutil.AddFinalizer(&existingCatsrc, fbcDeletionFinalizer)
-				if err := r.Update(ctx, &existingCatsrc); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-		} else {
-			if controllerutil.ContainsFinalizer(&existingCatsrc, fbcDeletionFinalizer) {
-				err := r.Storage.Delete(existingCatsrc.Name)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-				// remove our finalizer from the list and update it.
-				controllerutil.RemoveFinalizer(&existingCatsrc, fbcDeletionFinalizer)
-				if err := r.Update(ctx, &existingCatsrc); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-			return ctrl.Result{}, nil
+	if features.CatalogdFeatureGate.Enabled(features.HTTPServer) && existingCatsrc.DeletionTimestamp.IsZero() && !controllerutil.ContainsFinalizer(&existingCatsrc, fbcDeletionFinalizer) {
+		controllerutil.AddFinalizer(&existingCatsrc, fbcDeletionFinalizer)
+		if err := r.Update(ctx, &existingCatsrc); err != nil {
+			return ctrl.Result{}, err
 		}
+	}
+	if features.CatalogdFeatureGate.Enabled(features.HTTPServer) && !existingCatsrc.DeletionTimestamp.IsZero() && controllerutil.ContainsFinalizer(&existingCatsrc, fbcDeletionFinalizer) {
+		if err := r.Storage.Delete(existingCatsrc.Name); err != nil {
+			return ctrl.Result{}, err
+		}
+		controllerutil.RemoveFinalizer(&existingCatsrc, fbcDeletionFinalizer)
+		err := r.Update(ctx, &existingCatsrc)
+		return ctrl.Result{}, err
 	}
 	reconciledCatsrc := existingCatsrc.DeepCopy()
 	res, reconcileErr := r.reconcile(ctx, reconciledCatsrc)

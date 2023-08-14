@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing/fstest"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -154,7 +156,13 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 			AfterEach(func() {
 				By("tearing down cluster state")
-				Expect(cl.Delete(ctx, catalog)).To(Succeed())
+				Eventually(func() error {
+					err := cl.Delete(ctx, catalog)
+					if !apierrors.IsNotFound(err) {
+						return err
+					}
+					return nil
+				}).Should(Succeed())
 			})
 
 			When("unpacker returns source.Result with state == 'Pending'", func() {
@@ -278,11 +286,48 @@ var _ = Describe("Catalogd Controller Test", func() {
 					Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 				})
 
+				When("HTTPServer feature gate is enabled", func() {
+					BeforeEach(func() {
+						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
+							string(features.PackagesBundleMetadataAPIs): false,
+							string(features.CatalogMetadataAPI):         false,
+							string(features.HTTPServer):                 true,
+						})).NotTo(HaveOccurred())
+
+						// reconcile
+						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+						Expect(res).To(Equal(ctrl.Result{}))
+						Expect(err).ToNot(HaveOccurred())
+					})
+					It("should store the FBC in the cache directory", func() {
+						fbcFile := filepath.Join(reconciler.Storage.RootDirectory, fmt.Sprintf("%s.json", catalog.Name))
+						_, err := os.Stat(fbcFile)
+						Expect(err).To(Not(HaveOccurred()))
+					})
+
+					When("the catalog is deleted", func() {
+						BeforeEach(func() {
+							Expect(cl.Delete(ctx, catalog)).Should(Succeed())
+						})
+						It("should delete the FBC from the cache directory", func() {
+							// reconcile
+							res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
+							Expect(res).To(Equal(ctrl.Result{}))
+							Expect(err).ToNot(HaveOccurred())
+
+							fbcFile := filepath.Join(reconciler.Storage.RootDirectory, fmt.Sprintf("%s.json", catalog.Name))
+							_, err = os.Stat(fbcFile)
+							Expect(err).To(HaveOccurred())
+							Expect(os.IsNotExist(err)).To(BeTrue())
+						})
+					})
+				})
 				When("PackagesBundleMetadataAPIs feature gate is enabled", func() {
 					BeforeEach(func() {
 						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
 							string(features.PackagesBundleMetadataAPIs): true,
 							string(features.CatalogMetadataAPI):         false,
+							string(features.HTTPServer):                 false,
 						})).NotTo(HaveOccurred())
 
 						// reconcile
@@ -417,7 +462,9 @@ var _ = Describe("Catalogd Controller Test", func() {
 				When("the CatalogMetadataAPI feature gate is enabled", func() {
 					BeforeEach(func() {
 						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
-							string(features.CatalogMetadataAPI): true,
+							string(features.CatalogMetadataAPI):         true,
+							string(features.PackagesBundleMetadataAPIs): false,
+							string(features.HTTPServer):                 false,
 						})).NotTo(HaveOccurred())
 
 						// reconcile

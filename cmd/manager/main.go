@@ -36,7 +36,7 @@ import (
 
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/version"
-	catlaogserver "github.com/operator-framework/catalogd/pkg/catalogserver"
+	catalogserver "github.com/operator-framework/catalogd/pkg/catalogserver"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/profile"
@@ -122,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	catalogServer := catlaogserver.NewServer(storageDir, serverPort)
+	catalogServer := catalogserver.NewServer(storageDir, serverPort)
 	if err := mgr.Add(catalogServer); err != nil {
 		setupLog.Error(err, "unable to start catalog server")
 		os.Exit(1)
