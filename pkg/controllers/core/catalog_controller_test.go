@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"testing/fstest"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -23,6 +24,7 @@ import (
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/k8sutil"
 	"github.com/operator-framework/catalogd/internal/source"
+	"github.com/operator-framework/catalogd/pkg/catalogserver"
 	"github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/storage"
@@ -53,6 +55,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 		ctx        context.Context
 		reconciler *core.CatalogReconciler
 		mockSource *MockSource
+		testServer *httptest.Server
 	)
 	BeforeEach(func() {
 		tmpDir, err := os.MkdirTemp(GinkgoT().TempDir(), "cache")
@@ -68,8 +71,11 @@ var _ = Describe("Catalogd Controller Test", func() {
 			),
 			Storage: storage.NewStorage(tmpDir, http.NewServeMux()),
 		}
+		testServer = httptest.NewServer(catalogserver.MuxForServer(tmpDir))
 	})
-
+	AfterEach(func() {
+		testServer.Close()
+	})
 	When("the catalog does not exist", func() {
 		It("returns no error", func() {
 			res, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "non-existent"}})
@@ -292,26 +298,33 @@ var _ = Describe("Catalogd Controller Test", func() {
 						Expect(res).To(Equal(ctrl.Result{}))
 						Expect(err).ToNot(HaveOccurred())
 					})
-					It("should store the FBC in the cache directory", func() {
-						fbcFile := filepath.Join(reconciler.Storage.RootDirectory, fmt.Sprintf("%s.json", catalog.Name))
-						_, err := os.Stat(fbcFile)
+					It("the catalog should become available at addr/catalogs", func() {
+						res, err := http.Get(testServer.URL + "/catalogs")
 						Expect(err).To(Not(HaveOccurred()))
+						catalogs, err := io.ReadAll(res.Body)
+						res.Body.Close()
+						Expect(err).To(Not(HaveOccurred()))
+						//omitting trailing new line char from response
+						Expect(string(catalogs[:len(catalogs)-1])).To(Equal(catalogKey.Name))
 					})
 
 					When("the catalog is deleted", func() {
 						BeforeEach(func() {
 							Expect(cl.Delete(ctx, catalog)).Should(Succeed())
 						})
-						It("should delete the FBC from the cache directory", func() {
+						It("should not be available at addr/catalogs anymore", func() {
 							// reconcile
 							res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 							Expect(res).To(Equal(ctrl.Result{}))
 							Expect(err).ToNot(HaveOccurred())
 
-							fbcFile := filepath.Join(reconciler.Storage.RootDirectory, fmt.Sprintf("%s.json", catalog.Name))
-							_, err = os.Stat(fbcFile)
-							Expect(err).To(HaveOccurred())
-							Expect(os.IsNotExist(err)).To(BeTrue())
+							newres, err := http.Get(testServer.URL + "/catalogs")
+							Expect(err).To(Not(HaveOccurred()))
+							catalogs, err := io.ReadAll(newres.Body)
+							newres.Body.Close()
+							Expect(err).To(Not(HaveOccurred()))
+							//omitting trailing new line char from response
+							Expect(string(catalogs)).To(Equal(""))
 						})
 					})
 				})
