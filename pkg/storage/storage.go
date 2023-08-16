@@ -34,27 +34,20 @@ func (s *Storage) Store(owner string, fbc *declcfg.DeclarativeConfig) error {
 	if err := declcfg.WriteJSON(*fbc, fbcFile); err != nil {
 		return err
 	}
-	s.registerFileForServing(s.ServerMux, owner)
+	s.ServerMux.HandleFunc(fmt.Sprintf("/catalogs/%s", owner), func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(s.RootDirectory, fmt.Sprintf("%s.json", owner)))
+	})
 	return nil
 }
 
 func (s *Storage) Delete(owner string) error {
-	return ignoreNotExist(os.Remove(s.fbcPath(owner)))
-}
-
-func (s *Storage) registerFileForServing(mux *http.ServeMux, name string) {
-	mux.HandleFunc(fmt.Sprintf("/catalogs/%s", name), func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(s.RootDirectory, fmt.Sprintf("%s.json", name)))
-	})
-}
-
-func (s *Storage) fbcPath(catalogName string) string {
-	return filepath.Join(s.RootDirectory, fmt.Sprintf("%s.json", catalogName))
-}
-
-func ignoreNotExist(err error) error {
+	err := os.Remove(s.fbcPath(owner))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	return err
+}
+
+func (s *Storage) fbcPath(catalogName string) string {
+	return filepath.Join(s.RootDirectory, fmt.Sprintf("%s.json", catalogName))
 }

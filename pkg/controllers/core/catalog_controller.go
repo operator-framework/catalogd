@@ -47,7 +47,7 @@ import (
 	"github.com/operator-framework/catalogd/pkg/storage"
 )
 
-const fbcDeletionFinalizer = "operator-framework.catalogd/localstore"
+const fbcDeletionFinalizer = "catalogd.operatorframework.io/delete-server-cache"
 
 // CatalogReconciler reconciles a Catalog object
 type CatalogReconciler struct {

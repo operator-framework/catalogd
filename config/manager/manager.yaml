@@ -47,8 +47,8 @@ spec:
         - "./manager"
         args:
         - --leader-elect
-        - "--catalogs-storage-dir=/var/cache"
-        - "--catalogs-server-port=:8083"
+        - "--catalogs-storage-dir=/var/cache/catalogs"
+        - "--catalogs-server-addr=127.0.0.1:8083"
         image: controller:latest
         name: manager
         ports:

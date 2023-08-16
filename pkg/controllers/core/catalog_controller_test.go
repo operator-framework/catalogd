@@ -12,7 +12,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -156,13 +155,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 
 			AfterEach(func() {
 				By("tearing down cluster state")
-				Eventually(func() error {
-					err := cl.Delete(ctx, catalog)
-					if !apierrors.IsNotFound(err) {
-						return err
-					}
-					return nil
-				}).Should(Succeed())
+				Expect(client.IgnoreNotFound(cl.Delete(ctx, catalog))).To(Succeed())
 			})
 
 			When("unpacker returns source.Result with state == 'Pending'", func() {
