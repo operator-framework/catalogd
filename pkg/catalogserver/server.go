@@ -9,26 +9,27 @@ import (
 	"time"
 )
 
-// Server is a manager.Runnable Server, that serves the FBC
-// content of the extension catalogs added to the cluster
-type Server struct {
+// Instance is a manager.Runnable catalog server instance,
+// that serves the FBC content of the extension catalogs
+// added to the cluster
+type Instance struct {
 	Dir  string
 	Port string
 	Mux  *http.ServeMux
 }
 
-// NewServer takes directory and port number, and returns
-// a Server that serves the FBC content stored in the
-// directory on the given port number.
-func NewServer(dir, port string) Server {
-	return Server{
+// New returns an Instance of a catalog server that serves
+// the FBC content stored in the given directory on the given
+// http address.
+func New(dir, port string, mux *http.ServeMux) Instance {
+	return Instance{
 		Dir:  dir,
 		Port: port,
-		Mux:  &http.ServeMux{},
+		Mux:  mux,
 	}
 }
 
-func (s Server) Start(_ context.Context) error {
+func (s Instance) Start(ctx context.Context) error {
 	s.Mux.HandleFunc("/catalogs", func(w http.ResponseWriter, r *http.Request) {
 		files, err := os.ReadDir(s.Dir)
 		if err != nil {
@@ -46,5 +47,17 @@ func (s Server) Start(_ context.Context) error {
 		Addr:              s.Port,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
-	return server.ListenAndServe()
+	e := make(chan error)
+	go func(server *http.Server, e chan error) {
+		err := server.ListenAndServe()
+		e <- err
+		close(e)
+	}(server, e)
+	err := <-e
+	if err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+	return server.Shutdown(context.TODO())
 }
