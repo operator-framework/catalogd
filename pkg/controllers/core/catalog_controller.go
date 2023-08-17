@@ -53,7 +53,7 @@ const fbcDeletionFinalizer = "catalogd.operatorframework.io/delete-server-cache"
 type CatalogReconciler struct {
 	client.Client
 	Unpacker source.Unpacker
-	Storage  storage.Storage
+	Storage  storage.Instance
 }
 
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogs,verbs=get;list;watch;create;update;patch;delete

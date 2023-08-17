@@ -122,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	catalogServer := catalogserver.New(storageDir, catalogServerAddr)
+	catalogServer := catalogserver.Instance{Dir: storageDir, Addr: catalogServerAddr}
 	if err := mgr.Add(catalogServer); err != nil {
 		setupLog.Error(err, "unable to start catalog server")
 		os.Exit(1)
@@ -134,7 +134,7 @@ func main() {
 	if err = (&corecontrollers.CatalogReconciler{
 		Client:   mgr.GetClient(),
 		Unpacker: unpacker,
-		Storage:  storage.NewStorage(storageDir),
+		Storage:  storage.Instance{RootDirectory: storageDir},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Catalog")
 		os.Exit(1)

@@ -18,16 +18,6 @@ type Instance struct {
 	ShutdownTimeout time.Duration
 }
 
-// New returns an Instance of a catalog server that serves
-// the FBC content stored in the given directory on the given
-// http address.
-func New(dir, addr string) Instance {
-	return Instance{
-		Dir:  dir,
-		Addr: addr,
-	}
-}
-
 func (s Instance) Start(ctx context.Context) error {
 	server := &http.Server{
 		Handler:           ServerHandler(s.Dir),

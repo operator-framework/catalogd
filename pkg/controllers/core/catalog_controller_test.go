@@ -70,7 +70,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 					v1alpha1.SourceTypeImage: mockSource,
 				},
 			),
-			Storage: storage.NewStorage(tmpDir),
+			Storage: storage.Instance{RootDirectory: tmpDir},
 		}
 		testServer = httptest.NewServer(catalogserver.ServerHandler(tmpDir))
 		httpclient = &http.Client{}

@@ -57,7 +57,7 @@ spec:
               name: https
         volumeMounts:
             - name: catalog-cache
-              mountPath: /var/cache/
+              mountPath: /var/cache/catalogs
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
