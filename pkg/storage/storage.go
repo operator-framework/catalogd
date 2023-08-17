@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -14,13 +13,11 @@ import (
 // It can be used to Store or Delete FBC in the host's filesystem
 type Storage struct {
 	RootDirectory string
-	ServerMux     *http.ServeMux
 }
 
-func NewStorage(rootDir string, mux *http.ServeMux) Storage {
+func NewStorage(rootDir string) Storage {
 	return Storage{
 		RootDirectory: rootDir,
-		ServerMux:     mux,
 	}
 }
 
@@ -34,9 +31,6 @@ func (s *Storage) Store(owner string, fbc *declcfg.DeclarativeConfig) error {
 	if err := declcfg.WriteJSON(*fbc, fbcFile); err != nil {
 		return err
 	}
-	s.ServerMux.HandleFunc(fmt.Sprintf("/catalogs/%s", owner), func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(s.RootDirectory, fmt.Sprintf("%s.json", owner)))
-	})
 	return nil
 }
 

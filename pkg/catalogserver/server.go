@@ -2,10 +2,8 @@ package catalogserver
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -17,24 +15,22 @@ import (
 type Instance struct {
 	Dir             string
 	Addr            string
-	Mux             *http.ServeMux
 	ShutdownTimeout time.Duration
 }
 
 // New returns an Instance of a catalog server that serves
 // the FBC content stored in the given directory on the given
 // http address.
-func New(dir, addr string, mux *http.ServeMux) Instance {
+func New(dir, addr string) Instance {
 	return Instance{
 		Dir:  dir,
 		Addr: addr,
-		Mux:  mux,
 	}
 }
 
 func (s Instance) Start(ctx context.Context) error {
 	server := &http.Server{
-		Handler:           s.Mux,
+		Handler:           ServerHandler(s.Dir),
 		Addr:              s.Addr,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
@@ -64,19 +60,7 @@ func (s Instance) Start(ctx context.Context) error {
 	return server.Shutdown(sc)
 }
 
-func MuxForServer(dir string) *http.ServeMux {
-	m := &http.ServeMux{}
-	m.HandleFunc("/catalogs", func(w http.ResponseWriter, r *http.Request) {
-		files, err := os.ReadDir(dir)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "error reading catalog store directory: %v", err)
-			return
-		}
-		for _, file := range files {
-			name := file.Name()
-			fmt.Fprintf(w, "%v\n", name[:len(name)-len(filepath.Ext(name))])
-		}
-	})
-	return m
+func ServerHandler(dir string) http.Handler {
+	fs := http.FileServer(http.FS(os.DirFS(dir)))
+	return fs
 }

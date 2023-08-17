@@ -56,6 +56,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 		reconciler *core.CatalogReconciler
 		mockSource *MockSource
 		testServer *httptest.Server
+		httpclient *http.Client
 	)
 	BeforeEach(func() {
 		tmpDir, err := os.MkdirTemp(GinkgoT().TempDir(), "cache")
@@ -69,9 +70,10 @@ var _ = Describe("Catalogd Controller Test", func() {
 					v1alpha1.SourceTypeImage: mockSource,
 				},
 			),
-			Storage: storage.NewStorage(tmpDir, http.NewServeMux()),
+			Storage: storage.NewStorage(tmpDir),
 		}
-		testServer = httptest.NewServer(catalogserver.MuxForServer(tmpDir))
+		testServer = httptest.NewServer(catalogserver.ServerHandler(tmpDir))
+		httpclient = &http.Client{}
 	})
 	AfterEach(func() {
 		testServer.Close()
@@ -286,6 +288,7 @@ var _ = Describe("Catalogd Controller Test", func() {
 				})
 
 				When("HTTPServer feature gate is enabled", func() {
+					var httpRequest *http.Request
 					BeforeEach(func() {
 						Expect(features.CatalogdFeatureGate.SetFromMap(map[string]bool{
 							string(features.PackagesBundleMetadataAPIs): false,
@@ -293,38 +296,43 @@ var _ = Describe("Catalogd Controller Test", func() {
 							string(features.HTTPServer):                 true,
 						})).NotTo(HaveOccurred())
 
+						req, err := http.NewRequest("GET", testServer.URL, nil)
+						Expect(err).To(Not(HaveOccurred()))
+						req.Header.Set("Accept", "text/html")
+						httpRequest = req
+
 						// reconcile
 						res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 						Expect(res).To(Equal(ctrl.Result{}))
 						Expect(err).ToNot(HaveOccurred())
 					})
-					It("the catalog should become available at addr/catalogs", func() {
-						res, err := http.Get(testServer.URL + "/catalogs")
+					It("the catalog should become available at server endpoint", func() {
+						resp, err := httpclient.Do(httpRequest)
 						Expect(err).To(Not(HaveOccurred()))
-						catalogs, err := io.ReadAll(res.Body)
-						res.Body.Close()
+						defer resp.Body.Close()
+
+						catalogs, err := io.ReadAll(resp.Body)
 						Expect(err).To(Not(HaveOccurred()))
-						//omitting trailing new line char from response
-						Expect(string(catalogs[:len(catalogs)-1])).To(Equal(catalogKey.Name))
+						Expect(string(catalogs)).To(Equal(fmt.Sprintf(httpResponse, fmt.Sprintf("\n<a href=\"%s\">%s</a>", catalogKey.Name+".json", catalogKey.Name+".json"))))
 					})
 
 					When("the catalog is deleted", func() {
 						BeforeEach(func() {
 							Expect(cl.Delete(ctx, catalog)).Should(Succeed())
 						})
-						It("should not be available at addr/catalogs anymore", func() {
+						It("should not be available at server endpoint anymore", func() {
 							// reconcile
 							res, err := reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: catalogKey})
 							Expect(res).To(Equal(ctrl.Result{}))
 							Expect(err).ToNot(HaveOccurred())
 
-							newres, err := http.Get(testServer.URL + "/catalogs")
+							resp, err := httpclient.Do(httpRequest)
 							Expect(err).To(Not(HaveOccurred()))
-							catalogs, err := io.ReadAll(newres.Body)
-							newres.Body.Close()
+							defer resp.Body.Close()
+
+							catalogs, err := io.ReadAll(resp.Body)
 							Expect(err).To(Not(HaveOccurred()))
-							//omitting trailing new line char from response
-							Expect(string(catalogs)).To(Equal(""))
+							Expect(string(catalogs)).To(Equal(fmt.Sprintf(httpResponse, "")))
 						})
 					})
 				})
@@ -597,4 +605,8 @@ package: %s
 name: %s
 entries:
   - name: %s
+`
+
+const httpResponse = `<pre>%s
+</pre>
 `

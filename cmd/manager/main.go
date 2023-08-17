@@ -122,22 +122,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverMux := catalogserver.MuxForServer(storageDir)
-	catalogServer := catalogserver.New(storageDir, catalogServerAddr, serverMux)
+	catalogServer := catalogserver.New(storageDir, catalogServerAddr)
 	if err := mgr.Add(catalogServer); err != nil {
 		setupLog.Error(err, "unable to start catalog server")
 		os.Exit(1)
 	}
 
-	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(storageDir, 0700); err != nil {
-			setupLog.Error(err, "unable to create storage directory for catalogs")
-		}
+	if err := os.MkdirAll(storageDir, 0700); err != nil {
+		setupLog.Error(err, "unable to create storage directory for catalogs")
 	}
 	if err = (&corecontrollers.CatalogReconciler{
 		Client:   mgr.GetClient(),
 		Unpacker: unpacker,
-		Storage:  storage.NewStorage(storageDir, serverMux),
+		Storage:  storage.NewStorage(storageDir),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Catalog")
 		os.Exit(1)
