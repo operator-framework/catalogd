@@ -11,6 +11,7 @@ const (
 
 	CatalogMetadataAPI         featuregate.Feature = "CatalogMetadataAPI"
 	PackagesBundleMetadataAPIs featuregate.Feature = "PackagesBundleMetadataAPIs"
+	DirectImageRegistrySource  featuregate.Feature = "DirectImageRegistrySource"
 )
 
 var catalogdFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
@@ -22,6 +23,8 @@ var catalogdFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	// Marking the CatalogMetadataAPI feature gate as Deprecated in the interest of introducing
 	// the HTTP Server functionality in the future and use it as a default method of serving the catalog contents.
 	CatalogMetadataAPI: {Default: false, PreRelease: featuregate.Deprecated},
+
+	DirectImageRegistrySource: {Default: false, PreRelease: featuregate.Alpha},
 }
 
 var CatalogdFeatureGate featuregate.MutableFeatureGate = featuregate.NewFeatureGate()

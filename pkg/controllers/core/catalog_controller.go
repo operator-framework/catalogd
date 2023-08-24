@@ -41,7 +41,7 @@ import (
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/k8sutil"
-	"github.com/operator-framework/catalogd/internal/source"
+	catalogdsource "github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/features"
 )
 
@@ -50,7 +50,7 @@ import (
 // CatalogReconciler reconciles a Catalog object
 type CatalogReconciler struct {
 	client.Client
-	Unpacker source.Unpacker
+	Unpacker catalogdsource.Unpacker
 }
 
 //+kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=catalogs,verbs=get;list;watch;create;update;patch;delete
@@ -73,7 +73,9 @@ type CatalogReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *CatalogReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// TODO: Where and when should we be logging errors and at which level?
-	_ = log.FromContext(ctx).WithName("catalogd-controller")
+	l := log.FromContext(ctx).WithName("catalogd-controller")
+	l.Info("starting reconcile")
+	defer l.Info("ending reconcile")
 
 	existingCatsrc := v1alpha1.Catalog{}
 	if err := r.Client.Get(ctx, req.NamespacedName, &existingCatsrc); err != nil {
@@ -129,22 +131,22 @@ func (r *CatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Catalog) (ctrl.Result, error) {
 	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
 	if err != nil {
-		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("source bundle content: %v", err))
+		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("catalogdsource bundle content: %v", err))
 	}
 
 	switch unpackResult.State {
-	case source.StatePending:
+	case catalogdsource.StatePending:
 		updateStatusUnpackPending(&catalog.Status, unpackResult)
 		return ctrl.Result{}, nil
-	case source.StateUnpacking:
+	case catalogdsource.StateUnpacking:
 		updateStatusUnpacking(&catalog.Status, unpackResult)
 		return ctrl.Result{}, nil
-	case source.StateUnpacked:
+	case catalogdsource.StateUnpacked:
 		// TODO: We should check to see if the unpacked result has the same content
 		//   as the already unpacked content. If it does, we should skip this rest
 		//   of the unpacking steps.
 
-		fbc, err := declcfg.LoadFS(unpackResult.FS)
+		fbc, err := declcfg.LoadFS(ctx, unpackResult.FS)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("load FBC from filesystem: %v", err))
 		}
@@ -165,6 +167,7 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 			}
 		}
 
+		catalog.Status.ContentURL = fmt.Sprintf("http://catalogd-catalogs.catalogd-system.svc/catalogs/%s/all.json", catalog.Name)
 		updateStatusUnpacked(&catalog.Status, unpackResult)
 		return ctrl.Result{}, nil
 	default:
@@ -172,7 +175,7 @@ func (r *CatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.Cat
 	}
 }
 
-func updateStatusUnpackPending(status *v1alpha1.CatalogStatus, result *source.Result) {
+func updateStatusUnpackPending(status *v1alpha1.CatalogStatus, result *catalogdsource.Result) {
 	status.ResolvedSource = nil
 	status.Phase = v1alpha1.PhasePending
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
@@ -183,7 +186,7 @@ func updateStatusUnpackPending(status *v1alpha1.CatalogStatus, result *source.Re
 	})
 }
 
-func updateStatusUnpacking(status *v1alpha1.CatalogStatus, result *source.Result) {
+func updateStatusUnpacking(status *v1alpha1.CatalogStatus, result *catalogdsource.Result) {
 	status.ResolvedSource = nil
 	status.Phase = v1alpha1.PhaseUnpacking
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
@@ -194,7 +197,7 @@ func updateStatusUnpacking(status *v1alpha1.CatalogStatus, result *source.Result
 	})
 }
 
-func updateStatusUnpacked(status *v1alpha1.CatalogStatus, result *source.Result) {
+func updateStatusUnpacked(status *v1alpha1.CatalogStatus, result *catalogdsource.Result) {
 	status.ResolvedSource = result.ResolvedSource
 	status.Phase = v1alpha1.PhaseUnpacked
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{

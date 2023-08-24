@@ -17,31 +17,36 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io/fs"
+	"net/http"
 	"os"
-
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"oras.land/oras-go/v2/content/oci"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/version"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/profile"
-
-	//+kubebuilder:scaffold:imports
-	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
 var (
@@ -65,6 +70,7 @@ func main() {
 		profiling            bool
 		catalogdVersion      bool
 		systemNamespace      string
+		cacheDir             string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -72,8 +78,9 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	// TODO: should we move the unpacker to some common place? Or... hear me out... should catalogd just be a rukpak provisioner?
-	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images")
+	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:v0.12.0", "The unpack image to use when unpacking catalog images. Only used if feature gate DirectImageRegistrySource is not enabled")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "The namespace catalogd uses for internal state, configuration, and workloads")
+	flag.StringVar(&cacheDir, "cache-dir", "/var/cache", "The directory to use for various caches")
 	flag.BoolVar(&profiling, "profiling", false, "enable profiling endpoints to allow for using pprof")
 	flag.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
 	opts := zap.Options{
@@ -93,6 +100,16 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	for f, fSpec := range features.CatalogdFeatureGate.GetAll() {
+		setupLog.Info("feature",
+			"name", f,
+			"enabled", features.CatalogdFeatureGate.Enabled(f),
+			"default", fSpec.Default,
+			"lockToDefault", fSpec.LockToDefault,
+			"prerelease", fSpec.PreRelease,
+		)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -110,9 +127,24 @@ func main() {
 		systemNamespace = podNamespace()
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(mgr, systemNamespace, unpackImage)
+	ctx := ctrl.SetupSignalHandler()
+
+	var imageSource source.Unpacker
+	if features.CatalogdFeatureGate.Enabled(features.DirectImageRegistrySource) {
+		imageSource, err = directImageSource(ctx, mgr.GetClient(), systemNamespace, cacheDir)
+	} else {
+		imageSource, err = podImageSource(mgr, systemNamespace, unpackImage)
+	}
 	if err != nil {
-		setupLog.Error(err, "unable to create unpacker")
+		setupLog.Error(err, "unable to create image source")
+		os.Exit(1)
+	}
+	unpacker := source.NewUnpacker(map[v1alpha1.SourceType]source.Unpacker{
+		v1alpha1.SourceTypeImage: imageSource,
+	})
+
+	if err := mgr.AddMetricsExtraHandler("/catalogs/", catalogsHandler(filepath.Join(cacheDir, "wwwroot"))); err != nil {
+		setupLog.Error(err, "unable to add metrics extra handler")
 		os.Exit(1)
 	}
 
@@ -143,7 +175,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -155,4 +187,106 @@ func podNamespace() string {
 		return "catalogd-system"
 	}
 	return string(namespace)
+}
+
+func directImageSource(ctx context.Context, cl client.Client, systemNamespace, cacheDir string) (source.Unpacker, error) {
+	imageDir := filepath.Join(cacheDir, "images")
+	contentRoot := filepath.Join(cacheDir, "content")
+	serveRoot := filepath.Join(cacheDir, "wwwroot")
+	tmpRoot := filepath.Join(cacheDir, "tmp")
+
+	for _, dir := range []string{imageDir, contentRoot, serveRoot, tmpRoot} {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return nil, fmt.Errorf("unable to create directory %q: %w", dir, err)
+		}
+	}
+
+	imageStore, err := oci.NewWithContext(ctx, imageDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create image store: %w", err)
+	}
+	return &source.ImageDirect{
+		GetSecret: func(ctx context.Context, s string) (*corev1.Secret, error) {
+			var secret corev1.Secret
+			if err := cl.Get(ctx, types.NamespacedName{Namespace: systemNamespace, Name: s}, &secret); err != nil {
+				return nil, err
+			}
+			return &secret, nil
+		},
+		ImageCache: imageStore,
+
+		ContentRoot: contentRoot,
+		ServeRoot:   serveRoot,
+		TmpRoot:     tmpRoot,
+	}, nil
+}
+
+func podImageSource(mgr manager.Manager, systemNamespace, unpackImage string) (source.Unpacker, error) {
+	kubeClient, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return nil, fmt.Errorf("unable to create kubernetes client: %w", err)
+	}
+	return &source.Image{
+		Client:       mgr.GetClient(),
+		KubeClient:   kubeClient,
+		PodNamespace: systemNamespace,
+		UnpackImage:  unpackImage,
+	}, nil
+}
+
+func catalogsHandler(wwwRoot string) http.Handler {
+	fsHandler := http.FileServer(http.FS(&noDirsFS{os.DirFS(wwwRoot)}))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var etag string
+		contentPath, err := os.Readlink(filepath.Join(wwwRoot, r.URL.Path))
+		if err == nil {
+			etag = strings.TrimSuffix(filepath.Base(contentPath), ".json")
+		}
+		if etag != "" {
+			if r.Header.Get("If-None-Match") == etag {
+				w.Header().Set("ETag", etag)
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			w = etagWriter{w: w, etag: etag}
+		}
+		fsHandler.ServeHTTP(w, r)
+	})
+}
+
+type etagWriter struct {
+	w           http.ResponseWriter
+	etag        string
+	wroteHeader bool
+}
+
+func (s etagWriter) WriteHeader(code int) {
+	if s.wroteHeader == false {
+		s.w.Header().Set("ETag", s.etag)
+		s.wroteHeader = true
+	}
+	s.w.WriteHeader(code)
+}
+
+func (s etagWriter) Write(b []byte) (int, error) {
+	return s.w.Write(b)
+}
+
+func (s etagWriter) Header() http.Header {
+	return s.w.Header()
+}
+
+type noDirsFS struct {
+	fsys fs.FS
+}
+
+func (n noDirsFS) Open(name string) (fs.File, error) {
+	stat, err := fs.Stat(n.fsys, name)
+	if err != nil {
+		return nil, err
+	}
+	if stat.IsDir() {
+		return nil, os.ErrNotExist
+	}
+	return n.fsys.Open(name)
 }

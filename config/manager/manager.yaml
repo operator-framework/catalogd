@@ -13,6 +13,21 @@ metadata:
     pod-security.kubernetes.io/enforce-version: latest
   name: system
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogs
+  namespace: system
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    control-plane: controller-manager
+  type: ClusterIP
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -71,5 +86,11 @@ spec:
             cpu: 1000m
             memory: 200Mi
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - mountPath: /var/cache
+            name: cache
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: cache
+          emptyDir: {}

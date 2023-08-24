@@ -135,6 +135,8 @@ spec:
                   - type
                   type: object
                 type: array
+              contentURL:
+                type: string
               phase:
                 type: string
               resolvedSource:

@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 
-	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/cluster"
-
 	catalogdv1alpha1 "github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
@@ -91,25 +88,4 @@ func (s *unpacker) Unpack(ctx context.Context, catalog *catalogdv1alpha1.Catalog
 		return nil, fmt.Errorf("source type %q not supported", catalog.Spec.Source.Type)
 	}
 	return source.Unpack(ctx, catalog)
-}
-
-// NewDefaultUnpacker returns a new composite Source that unpacks catalogs using
-// a default source mapping with built-in implementations of all of the supported
-// source types.
-//
-// TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string) (Unpacker, error) {
-	cfg := systemNsCluster.GetConfig()
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return NewUnpacker(map[catalogdv1alpha1.SourceType]Unpacker{
-		catalogdv1alpha1.SourceTypeImage: &Image{
-			Client:       systemNsCluster.GetClient(),
-			KubeClient:   kubeClient,
-			PodNamespace: namespace,
-			UnpackImage:  unpackImage,
-		},
-	}), nil
 }

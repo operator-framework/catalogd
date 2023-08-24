@@ -76,6 +76,7 @@ type CatalogStatus struct {
 	// Conditions store the status conditions of the Catalog instances
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
+	ContentURL     string         `json:"contentURL,omitempty"`
 	ResolvedSource *CatalogSource `json:"resolvedSource,omitempty"`
 	Phase          string         `json:"phase,omitempty"`
 }

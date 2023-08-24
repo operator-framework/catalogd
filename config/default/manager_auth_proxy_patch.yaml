@@ -48,7 +48,7 @@ spec:
       - name: manager
         args:
         - "--health-probe-bind-address=:8081"
-        - "--metrics-bind-address=127.0.0.1:8080"
+        # TODO: DO NOT LISTEN ON ALL INTERFACES. THIS IS A HACK FOR DEVELOPMENT ONLY.
+        - "--metrics-bind-address=:8080"
         - "--leader-elect"
-        - "--feature-gates=PackagesBundleMetadataAPIs=true,CatalogMetadataAPI=true"
-
+        - "--feature-gates=DirectImageRegistrySource=true"

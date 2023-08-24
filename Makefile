@@ -126,6 +126,8 @@ $(LINUX_BINARIES):
 
 .PHONY: run
 run: generate kind-cluster install ## Create a kind cluster and install a local build of catalogd
+redeploy: generate install
+	kubectl delete pod -n catalogd-system -l control-plane=controller-manager
 
 .PHONY: build-container
 build-container: build-linux ## Build docker image for catalogd.

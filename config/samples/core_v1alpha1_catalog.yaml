@@ -6,4 +6,4 @@ spec:
   source:
     type: image
     image:
-      ref: quay.io/operatorhubio/catalog:latest
+      ref: quay.io/joelanford/operatorhubio-catalog-fbc:latest
