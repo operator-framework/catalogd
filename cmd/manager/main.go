@@ -132,7 +132,9 @@ func main() {
 
 		if err := os.MkdirAll(storageDir, 0700); err != nil {
 			setupLog.Error(err, "unable to create storage directory for catalogs")
+			os.Exit(1)
 		}
+
 		localStorage = storage.LocalDir{RootDir: storageDir}
 		shutdownTimeout := 30 * time.Second
 		catalogServer := server.Server{
@@ -145,6 +147,7 @@ func main() {
 			},
 			ShutdownTimeout: &shutdownTimeout,
 		}
+
 		if err := mgr.Add(&catalogServer); err != nil {
 			setupLog.Error(err, "unable to start catalog server")
 			os.Exit(1)
@@ -177,6 +180,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
