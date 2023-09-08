@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/spf13/pflag"
 
@@ -42,6 +43,7 @@ import (
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
 	"github.com/operator-framework/catalogd/pkg/profile"
+	catalogdserver "github.com/operator-framework/catalogd/pkg/server"
 	"github.com/operator-framework/catalogd/pkg/storage"
 
 	//+kubebuilder:scaffold:imports
@@ -124,24 +126,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(storageDir, 0700); err != nil {
-		setupLog.Error(err, "unable to create storage directory for catalogs")
-	}
-	localStorage := storage.LocalDir{RootDir: storageDir}
-	shutdownTimeout := 30 * time.Second
-	catalogServer := server.Server{
-		Kind: "catalogs",
-		Server: &http.Server{
-			Addr:         catalogServerAddr,
-			Handler:      localStorage.StorageServerHandler(),
-			ReadTimeout:  5 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		},
-		ShutdownTimeout: &shutdownTimeout,
-	}
-	if err := mgr.Add(&catalogServer); err != nil {
-		setupLog.Error(err, "unable to start catalog server")
-		os.Exit(1)
+	var localStorage storage.Instance
+	if features.CatalogdFeatureGate.Enabled(features.HTTPServer) {
+		metrics.Registry.MustRegister(catalogdserver.RequestDurationMetric)
+
+		if err := os.MkdirAll(storageDir, 0700); err != nil {
+			setupLog.Error(err, "unable to create storage directory for catalogs")
+		}
+		localStorage = storage.LocalDir{RootDir: storageDir}
+		shutdownTimeout := 30 * time.Second
+		catalogServer := server.Server{
+			Kind: "catalogs",
+			Server: &http.Server{
+				Addr:         catalogServerAddr,
+				Handler:      catalogdserver.AddMetricsToHandler(localStorage.StorageServerHandler()),
+				ReadTimeout:  5 * time.Second,
+				WriteTimeout: 10 * time.Second,
+			},
+			ShutdownTimeout: &shutdownTimeout,
+		}
+		if err := mgr.Add(&catalogServer); err != nil {
+			setupLog.Error(err, "unable to start catalog server")
+			os.Exit(1)
+		}
 	}
 
 	if err = (&corecontrollers.CatalogReconciler{
@@ -170,7 +177,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
