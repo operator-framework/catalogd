@@ -42,8 +42,8 @@ import (
 	"github.com/operator-framework/catalogd/internal/version"
 	corecontrollers "github.com/operator-framework/catalogd/pkg/controllers/core"
 	"github.com/operator-framework/catalogd/pkg/features"
+	catalogdmetrics "github.com/operator-framework/catalogd/pkg/metrics"
 	"github.com/operator-framework/catalogd/pkg/profile"
-	catalogdserver "github.com/operator-framework/catalogd/pkg/server"
 	"github.com/operator-framework/catalogd/pkg/storage"
 
 	//+kubebuilder:scaffold:imports
@@ -128,7 +128,7 @@ func main() {
 
 	var localStorage storage.Instance
 	if features.CatalogdFeatureGate.Enabled(features.HTTPServer) {
-		metrics.Registry.MustRegister(catalogdserver.RequestDurationMetric)
+		metrics.Registry.MustRegister(catalogdmetrics.RequestDurationMetric)
 
 		if err := os.MkdirAll(storageDir, 0700); err != nil {
 			setupLog.Error(err, "unable to create storage directory for catalogs")
@@ -141,7 +141,7 @@ func main() {
 			Kind: "catalogs",
 			Server: &http.Server{
 				Addr:         catalogServerAddr,
-				Handler:      catalogdserver.AddMetricsToHandler(localStorage.StorageServerHandler()),
+				Handler:      catalogdmetrics.AddMetricsToHandler(localStorage.StorageServerHandler()),
 				ReadTimeout:  5 * time.Second,
 				WriteTimeout: 10 * time.Second,
 			},
