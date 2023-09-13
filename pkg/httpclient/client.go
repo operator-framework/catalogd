@@ -1,7 +1,6 @@
 package httpclient
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -27,26 +26,26 @@ type CatalogServerClient interface {
 	// the results that are returned. If any of the filters return a "false" value
 	// indicating the *declcfg.Meta object will not be included in the returned slice.
 	// An error will be returned if any occur.
-	GetCatalogContents(ctx context.Context, catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error)
+	GetCatalogContents(catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error)
 }
 
-type clientOpts func(c *client)
+type ClientOpts func(c *client)
 
 // WithBaseURL is an option function that
 // sets the base url that is used when
 // making a request. If this option is not used
 // it defaults to OnClusterBaseURL
-func WithBaseURL(base string) clientOpts {
+func WithBaseURL(base string) ClientOpts {
 	return func(c *client) {
-		c.BaseUrl = base
+		c.BaseURL = base
 	}
 }
 
 // NewClient returns a new CatalogServerClient configured
 // with the provided options (if any provided)
-func NewClient(opts ...clientOpts) CatalogServerClient {
+func NewClient(opts ...ClientOpts) CatalogServerClient {
 	cli := &client{
-		BaseUrl: OnClusterBaseURL,
+		BaseURL: OnClusterBaseURL,
 	}
 
 	for _, opt := range opts {
@@ -58,13 +57,14 @@ func NewClient(opts ...clientOpts) CatalogServerClient {
 
 // client is an implementation of the CatalogServerClient interface
 type client struct {
-	BaseUrl string
+	BaseURL string
 }
 
-func (c *client) GetCatalogContents(ctx context.Context, catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error) {
-	catalogUrl := strings.Join([]string{c.BaseUrl, catalogsEndpoint, catalogName, "all.json"}, "/")
+func (c *client) GetCatalogContents(catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error) {
+	catalogURL := strings.Join([]string{c.BaseURL, catalogsEndpoint, catalogName, "all.json"}, "/")
 
-	resp, err := http.Get(catalogUrl)
+	//nolint:gosec
+	resp, err := http.Get(catalogURL)
 	if err != nil {
 		return nil, err
 	}

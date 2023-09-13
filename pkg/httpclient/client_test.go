@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +26,7 @@ var _ = Describe("HTTP Client Test", func() {
 			mux.Handle(
 				fmt.Sprintf("/catalogs/%s/all.json", testCatalogName),
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					_, _ = w.Write([]byte(allJson))
+					_, _ = w.Write([]byte(allJSON))
 				},
 				))
 			srv = httptest.NewServer(mux)
@@ -39,7 +38,7 @@ var _ = Describe("HTTP Client Test", func() {
 
 		It("Should return all contents", func() {
 			expectedMetas := []*declcfg.Meta{}
-			err := declcfg.WalkMetasReader(bytes.NewReader([]byte(allJson)), func(meta *declcfg.Meta, err error) error {
+			err := declcfg.WalkMetasReader(bytes.NewReader([]byte(allJSON)), func(meta *declcfg.Meta, err error) error {
 				if err != nil {
 					return err
 				}
@@ -48,14 +47,14 @@ var _ = Describe("HTTP Client Test", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName)
+			metas, err := cli.GetCatalogContents(testCatalogName)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(metas).To(Equal(expectedMetas))
 		})
 
 		It("Should return only blobs that have schema == \"olm.package\"", func() {
 			expectedMetas := []*declcfg.Meta{}
-			err := declcfg.WalkMetasReader(bytes.NewReader([]byte(allJson)), func(meta *declcfg.Meta, err error) error {
+			err := declcfg.WalkMetasReader(bytes.NewReader([]byte(allJSON)), func(meta *declcfg.Meta, err error) error {
 				if err != nil {
 					return err
 				}
@@ -66,7 +65,7 @@ var _ = Describe("HTTP Client Test", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName, func(meta *declcfg.Meta) bool {
+			metas, err := cli.GetCatalogContents(testCatalogName, func(meta *declcfg.Meta) bool {
 				return meta.Schema == "olm.package"
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -84,7 +83,7 @@ var _ = Describe("HTTP Client Test", func() {
 			mux.Handle(
 				fmt.Sprintf("/catalogs/%s/all.json", testCatalogName),
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					_, _ = w.Write([]byte(invalidJson))
+					_, _ = w.Write([]byte(invalidJSON))
 				},
 				))
 			srv = httptest.NewServer(mux)
@@ -95,7 +94,7 @@ var _ = Describe("HTTP Client Test", func() {
 		})
 
 		It("Should return an error", func() {
-			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName)
+			metas, err := cli.GetCatalogContents(testCatalogName)
 			Expect(err).To(HaveOccurred())
 			Expect(metas).To(BeNil())
 		})
@@ -122,14 +121,14 @@ var _ = Describe("HTTP Client Test", func() {
 		})
 
 		It("Should return an error", func() {
-			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName)
+			metas, err := cli.GetCatalogContents(testCatalogName)
 			Expect(err).To(HaveOccurred())
 			Expect(metas).To(BeNil())
 		})
 	})
 })
 
-const invalidJson = `
+const invalidJSON = `
 {
 	"schema": olm.package
 	"name": bar
@@ -137,7 +136,7 @@ const invalidJson = `
 }
 `
 
-const allJson = `
+const allJSON = `
 {
 	"schema": "olm.package",
 	"name": "foo",
