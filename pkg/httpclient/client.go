@@ -53,7 +53,7 @@ type Client struct {
 // from the catalogd HTTP server that serves catalog contents and returns
 // the results as a slice of *declcfg.Meta. Filters can be applied to filter
 // the results that are returned. If any of the filters return a "false" value
-// indicating the *declcfg.Meta object will not be included in the returned slice.
+// the *declcfg.Meta object will not be included in the returned slice.
 // An error will be returned if any occur.
 func (c *Client) GetCatalogContents(ctx context.Context, catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error) {
 	catalogURL := strings.Join([]string{c.baseURL, catalogsEndpoint, catalogName, "all.json"}, "/")
