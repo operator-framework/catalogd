@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +20,7 @@ var _ = Describe("HTTP Client Test", func() {
 	Context("HTTP Server responds with 200 response code and a valid JSON stream", func() {
 		var (
 			srv *httptest.Server
-			cli CatalogServerClient
+			cli *Client
 		)
 		BeforeEach(func() {
 			mux := http.NewServeMux()
@@ -47,7 +48,7 @@ var _ = Describe("HTTP Client Test", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			metas, err := cli.GetCatalogContents(testCatalogName)
+			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(metas).To(Equal(expectedMetas))
 		})
@@ -65,7 +66,7 @@ var _ = Describe("HTTP Client Test", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			metas, err := cli.GetCatalogContents(testCatalogName, func(meta *declcfg.Meta) bool {
+			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName, func(meta *declcfg.Meta) bool {
 				return meta.Schema == "olm.package"
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -76,7 +77,7 @@ var _ = Describe("HTTP Client Test", func() {
 	Context("HTTP Server responds with a 200 response code and an invalid JSON stream", func() {
 		var (
 			srv *httptest.Server
-			cli CatalogServerClient
+			cli *Client
 		)
 		BeforeEach(func() {
 			mux := http.NewServeMux()
@@ -94,7 +95,7 @@ var _ = Describe("HTTP Client Test", func() {
 		})
 
 		It("Should return an error", func() {
-			metas, err := cli.GetCatalogContents(testCatalogName)
+			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName)
 			Expect(err).To(HaveOccurred())
 			Expect(metas).To(BeNil())
 		})
@@ -103,7 +104,7 @@ var _ = Describe("HTTP Client Test", func() {
 	Context("HTTP Server responds with a non-2xx response code", func() {
 		var (
 			srv *httptest.Server
-			cli CatalogServerClient
+			cli *Client
 		)
 		BeforeEach(func() {
 			mux := http.NewServeMux()
@@ -121,7 +122,7 @@ var _ = Describe("HTTP Client Test", func() {
 		})
 
 		It("Should return an error", func() {
-			metas, err := cli.GetCatalogContents(testCatalogName)
+			metas, err := cli.GetCatalogContents(context.TODO(), testCatalogName)
 			Expect(err).To(HaveOccurred())
 			Expect(metas).To(BeNil())
 		})

@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,35 +18,23 @@ const catalogsEndpoint = "catalogs"
 // response.
 type FilterFunc func(meta *declcfg.Meta) bool
 
-// CatalogServerClient is an interface that can be used for
-// fetching catalog contents from the catalogd HTTP server
-type CatalogServerClient interface {
-	// GetCatalogContents fetches contents for a provided Catalog name
-	// from the catalogd HTTP server that serves catalog contents and returns
-	// the results as a slice of *declcfg.Meta. Filters can be applied to filter
-	// the results that are returned. If any of the filters return a "false" value
-	// indicating the *declcfg.Meta object will not be included in the returned slice.
-	// An error will be returned if any occur.
-	GetCatalogContents(catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error)
-}
-
-type ClientOpts func(c *client)
+type ClientOpts func(c *Client)
 
 // WithBaseURL is an option function that
 // sets the base url that is used when
 // making a request. If this option is not used
 // it defaults to OnClusterBaseURL
 func WithBaseURL(base string) ClientOpts {
-	return func(c *client) {
-		c.BaseURL = base
+	return func(c *Client) {
+		c.baseURL = base
 	}
 }
 
-// NewClient returns a new CatalogServerClient configured
+// NewClient returns a new Client configured
 // with the provided options (if any provided)
-func NewClient(opts ...ClientOpts) CatalogServerClient {
-	cli := &client{
-		BaseURL: OnClusterBaseURL,
+func NewClient(opts ...ClientOpts) *Client {
+	cli := &Client{
+		baseURL: OnClusterBaseURL,
 	}
 
 	for _, opt := range opts {
@@ -55,16 +44,26 @@ func NewClient(opts ...ClientOpts) CatalogServerClient {
 	return cli
 }
 
-// client is an implementation of the CatalogServerClient interface
-type client struct {
-	BaseURL string
+// Client is used for fetching catalog contents from the catalogd HTTP server
+type Client struct {
+	baseURL string
 }
 
-func (c *client) GetCatalogContents(catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error) {
-	catalogURL := strings.Join([]string{c.BaseURL, catalogsEndpoint, catalogName, "all.json"}, "/")
+// GetCatalogContents fetches contents for a provided Catalog name
+// from the catalogd HTTP server that serves catalog contents and returns
+// the results as a slice of *declcfg.Meta. Filters can be applied to filter
+// the results that are returned. If any of the filters return a "false" value
+// indicating the *declcfg.Meta object will not be included in the returned slice.
+// An error will be returned if any occur.
+func (c *Client) GetCatalogContents(ctx context.Context, catalogName string, filters ...FilterFunc) ([]*declcfg.Meta, error) {
+	catalogURL := strings.Join([]string{c.baseURL, catalogsEndpoint, catalogName, "all.json"}, "/")
 
-	//nolint:gosec
-	resp, err := http.Get(catalogURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, catalogURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error forming request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
