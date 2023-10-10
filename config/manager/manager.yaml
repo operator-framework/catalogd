@@ -74,7 +74,11 @@ spec:
         args:
         - --leader-elect
         - --metrics-bind-address=127.0.0.1:8080
+<<<<<<< HEAD
         - --feature-gates=HTTPServer=true
+=======
+        - --catalogs-storage-dir=/var/cache/catalogs
+>>>>>>> 0f6f66e (remove HTTPServer feature gate)
         - --http-external-address=http://catalogd-catalogserver.catalogd-system.svc
         image: controller:latest
         name: manager
