@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+
 	catalogdv1alpha1 "github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/pkg/storage"
@@ -259,15 +260,59 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "valid source type, unpack state == Unpacked, unpack state is reflected in status",
-			source: func() *MockSource {
-				return &MockSource{
-					result: &source.Result{
-						State: source.StateUnpacked,
-						FS:    &fstest.MapFS{},
+			name:      "valid source type, unpack returns error, status updated to reflect error state and error is returned",
+			shouldErr: true,
+			source: &MockSource{
+				shouldError: true,
+			},
+			store: &MockStore{},
+			catalog: &catalogdv1alpha1.Catalog{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "catalog",
+					Finalizers: []string{fbcDeletionFinalizer},
+				},
+				Spec: catalogdv1alpha1.CatalogSpec{
+					Source: catalogdv1alpha1.CatalogSource{
+						Type: "image",
+						Image: &catalogdv1alpha1.ImageSource{
+							Ref: "someimage:latest",
+						},
 					},
-				}
-			}(),
+				},
+			},
+			expectedCatalog: &catalogdv1alpha1.Catalog{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "catalog",
+					Finalizers: []string{fbcDeletionFinalizer},
+				},
+				Spec: catalogdv1alpha1.CatalogSpec{
+					Source: catalogdv1alpha1.CatalogSource{
+						Type: "image",
+						Image: &catalogdv1alpha1.ImageSource{
+							Ref: "someimage:latest",
+						},
+					},
+				},
+				Status: catalogdv1alpha1.CatalogStatus{
+					Phase: catalogdv1alpha1.PhaseFailing,
+					Conditions: []metav1.Condition{
+						{
+							Type:   catalogdv1alpha1.TypeUnpacked,
+							Status: metav1.ConditionFalse,
+							Reason: catalogdv1alpha1.ReasonUnpackFailed,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "valid source type, unpack state == Unpacked, unpack state is reflected in status",
+			source: &MockSource{
+				result: &source.Result{
+					State: source.StateUnpacked,
+					FS:    &fstest.MapFS{},
+				},
+			},
 			store: &MockStore{},
 			catalog: &catalogdv1alpha1.Catalog{
 				ObjectMeta: metav1.ObjectMeta{
@@ -312,14 +357,12 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 		{
 			name:      "valid source type, unpack state == Unpacked, storage fails, failure reflected in status and error returned",
 			shouldErr: true,
-			source: func() *MockSource {
-				return &MockSource{
-					result: &source.Result{
-						State: source.StateUnpacked,
-						FS:    &fstest.MapFS{},
-					},
-				}
-			}(),
+			source: &MockSource{
+				result: &source.Result{
+					State: source.StateUnpacked,
+					FS:    &fstest.MapFS{},
+				},
+			},
 			store: &MockStore{
 				shouldError: true,
 			},
@@ -395,7 +438,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			},
 		},
 		{
-			name:   "storage finalizer set, catalog is deleted, finalizer removed",
+			name:   "storage finalizer set, catalog deletion timestamp is not zero (or nil), finalizer removed",
 			source: &MockSource{},
 			store:  &MockStore{},
 			catalog: &catalogdv1alpha1.Catalog{
@@ -430,7 +473,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			},
 		},
 		{
-			name:      "storage finalizer set, catalog is deleted, storage delete failed, error returned and finalizer not removed",
+			name:      "storage finalizer set, catalog deletion timestamp is not zero (or nil), storage delete failed, error returned and finalizer not removed",
 			shouldErr: true,
 			source:    &MockSource{},
 			store: &MockStore{
