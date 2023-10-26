@@ -177,3 +177,25 @@ release: $(GORELEASER) ## Runs goreleaser for catalogd. By default, this will ru
 
 quickstart: $(KUSTOMIZE) generate ## Generate the installation release manifests and scripts
 	$(KUSTOMIZE) build config/default | sed "s/:devel/:$(GIT_VERSION)/g" > catalogd.yaml
+
+##@ Docs
+
+VENVDIR=$(abspath docs/.venv)
+REQUIREMENTS_TXT=docs/requirements.txt
+
+.PHONY: build-docs
+build-docs: venv
+	. $(VENV)/activate; \
+	mkdocs build
+
+.PHONY: serve-docs
+serve-docs: venv
+	. $(VENV)/activate; \
+	mkdocs serve
+
+.PHONY: deploy-docs
+deploy-docs: venv
+	. $(VENV)/activate; \
+	mkdocs gh-deploy --force
+
+include Makefile.venv

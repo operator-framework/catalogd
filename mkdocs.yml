@@ -1,0 +1,6 @@
+site_name: CatalogD documentation
+theme:
+ name: "material"
+
+repo_url: https://github.com/operator-framework/catalogd
+
