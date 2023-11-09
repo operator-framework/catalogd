@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: catalogd-nginx-ingress
+  name: catalogd-ingress
   namespace: catalogd-system
 spec:
   ingressClassName: nginx

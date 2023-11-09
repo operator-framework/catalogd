@@ -68,9 +68,11 @@ This section outlines a way of exposing the `Catalogd` Service's endpoints outsi
 - Assuming `kind` is installed, create a `kind` cluster with `extraPortMappings` and `node-labels` as shown in the [kind documentation](https://kind.sigs.k8s.io/docs/user/ingress/)
 - Install latest version of `Catalogd` by navigating to the [releases page](https://github.com/operator-framework/catalogd/releases) and following the install instructions included in the release you want to install.
 - Install the `Ingress NGINX` Controller by running the below command:
+
   ```sh
     $ kubectl apply -k  https://github.com/operator-framework/catalogd/tree/main/config/nginx-ingress
   ```
+  By running tha above command, the `Ingress` Controller is installed. Along with it, the `Ingress` Resource will be applied automatically as well, thereby creating an `Ingress` Object on the cluster.
 
 1. Once the prerequisites are satisfied, create a `Catalog` object that points to the OperatorHub Community catalog by running the following command:
 
@@ -118,7 +120,7 @@ This section outlines a way of exposing the `Catalogd` Service's endpoints outsi
     Let's verify that the `Ingress` object got created successfully from the sample by running the following command:
 
       ```sh
-        $ kubectl describe ingress/catalogd-nginx-ingress -n catalogd-system
+        $ kubectl describe ingress/catalogd-ingress -n catalogd-system
       ```
 
 1. Run the below example `curl` request to retrieve all of the catalog contents:
