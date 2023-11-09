@@ -60,7 +60,7 @@ curl http://localhost:8080/catalogs/operatorhubio/all.json
 
 # Fetching `Catalog` contents from the `Catalogd` Service outside of the cluster
 
-This section outlines a way of exposing the `Catalogd` Service's endpoints outside the cluster and then accessing the catalog contents using `Ingress`. 
+This section outlines a way of exposing the `Catalogd` Service's endpoints outside the cluster and then accessing the catalog contents using `Ingress`. We will be using `Ingress NGINX` Controller for the sake of this example but you are welcome to use the `Ingress` Controller of your choice.
 
 **Prerequisites**
 
@@ -72,7 +72,7 @@ This section outlines a way of exposing the `Catalogd` Service's endpoints outsi
   ```sh
     $ kubectl apply -k  https://github.com/operator-framework/catalogd/tree/main/config/nginx-ingress
   ```
-  By running tha above command, the `Ingress` Controller is installed. Along with it, the `Ingress` Resource will be applied automatically as well, thereby creating an `Ingress` Object on the cluster.
+  By running that above command, the `Ingress` Controller is installed. Along with it, the `Ingress` Resource will be applied automatically as well, thereby creating an `Ingress` Object on the cluster.
 
 1. Once the prerequisites are satisfied, create a `Catalog` object that points to the OperatorHub Community catalog by running the following command:
 
