@@ -63,37 +63,16 @@ curl http://localhost:8080/catalogs/operatorhubio/all.json
 This section outlines a way of exposing the `Catalogd` Service's endpoints outside the cluster and then accessing the catalog contents using `Ingress`. 
 
 **Prerequisites**
+
 - [Install kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- Assuming `kind` is installed, create a `kind` cluster with `extraPortMappings` and `node-labels` as shown in the [kind documentation](https://kind.sigs.k8s.io/docs/user/ingress/)
 - Install latest version of `Catalogd` by navigating to the [releases page](https://github.com/operator-framework/catalogd/releases) and following the install instructions included in the release you want to install.
+- Install the `Ingress NGINX` Controller by running the below command:
+  ```sh
+    $ kubectl apply -k  https://github.com/operator-framework/catalogd/tree/main/config/nginx-ingress
+  ```
 
-1. Create a `kind` cluster with `extraPortMappings` and `node-labels` by running the below command:
-
-    ```sh
-      cat <<EOF | kind create cluster --config=-
-      kind: Cluster
-      apiVersion: kind.x-k8s.io/v1alpha4
-      nodes:
-      - role: control-plane
-        kubeadmConfigPatches:
-        - |
-          kind: InitConfiguration
-          nodeRegistration:
-            kubeletExtraArgs:
-              node-labels: "ingress-ready=true"
-      extraPortMappings:
-      - containerPort: 80
-        hostPort: 80
-        protocol: TCP
-      - containerPort: 443
-        hostPort: 443
-        protocol: TCP
-      EOF
-    ```
-
-    - `extraPortMappings` allows the localhost to make requests to the Ingress controller over ports `80/443`. Setting this config option when creating a cluster allows to forward ports from the host to an ingress controller running on a node.
-    - `node-labels` only allows the ingress controller to run on a specific node(s) matching the label selector.
-
-1. Create a `Catalog` object that points to the OperatorHub Community catalog by running the following command:
+1. Once the prerequisites are satisfied, create a `Catalog` object that points to the OperatorHub Community catalog by running the following command:
 
     ```sh
       $ kubectl apply -f - << EOF
@@ -109,62 +88,48 @@ This section outlines a way of exposing the `Catalogd` Service's endpoints outsi
         EOF
     ```
 
-1. Before proceeding further let's verify that the `Catalog` object was created successfully by running the below command: 
+1. Before proceeding further, let's verify that the `Catalog` object was created successfully by running the below command: 
 
     ```sh
       $ kubectl describe catalog/operatorhubio
     ```
 
-1. Now we can proceed to install the `Ingress` controller. We will be using `Ingress NGINX` for the controller. Run the following command to install the `Ingress` controller:
+1. At this point the `Catalog` object exists and `Ingress` controller is ready to process requests. The sample `Ingress` Resource that was created during Step 4 of Prerequisites is shown as below: 
+
+    ```yaml
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: catalogd-nginx-ingress
+        namespace: catalogd-system
+      spec:
+        ingressClassName: nginx
+        rules:
+        - http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: catalogd-catalogserver
+                  port:
+                    number: 80
+      ```
+    Let's verify that the `Ingress` object got created successfully from the sample by running the following command:
+
+      ```sh
+        $ kubectl describe ingress/catalogd-nginx-ingress -n catalogd-system
+      ```
+
+1. Run the below example `curl` request to retrieve all of the catalog contents:
 
     ```sh
-      $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-    ```
-
-1. Wait until `Ingress` is ready by running the below `kubectl wait` command: 
-  
-    ```sh
-      $ kubectl wait --namespace ingress-nginx \
-      --for=condition=ready pod \
-      --selector=app.kubernetes.io/component=controller \
-      --timeout=90s
-    ```
-
-1. At this point the `Ingress` controller is ready to process requests. Let's create an `Ingress` object by running the below command:
-
-    ```sh
-      $ kubectl apply -f https://github.com/operator-framework/catalogd/tree/main/manifests/overlays/nginx-ingress/resources/nginx_ingress.yaml
-
-        Sample `Ingress` Resource:
-        ```yaml
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          name: catalogd-nginx-ingress
-          namespace: catalogd-system
-          annotations:
-            nginx.org/proxy-connect-timeout: "30s"
-            nginx.org/proxy-read-timeout: "20s"
-            nginx.org/client-max-body-size: "4m"
-        spec:
-          ingressClassName: nginx
-          rules:
-          - http:
-              paths:
-              - path: /
-                pathType: Prefix
-                backend:
-                  service:
-                    name: catalogd-catalogserver
-                    port:
-                      number: 80
-    ```
-
-
-1. Once the `Ingress` object has been successfully created, issue a `curl` request. Below is an example `curl` request to retrieve all of the catalog contents:
-
-    ```sh
-      $ curl http://localhost/catalogs/operatorhubio/all.json
+      $ curl http://<address>/catalogs/operatorhubio/all.json
     ```
     
+    To obtain `address` of the ingress object, you can run the below command and look for the value in the `ADDRESS` field from output: 
+    ```sh
+      $ kubectl -n catalogd-system get ingress
+    ```
+   
     You can further use the `curl` commands outlined in the [Catalogd README](https://github.com/operator-framework/catalogd/blob/main/README.md) to filter out the JSON content by list of bundles, channels & packages.

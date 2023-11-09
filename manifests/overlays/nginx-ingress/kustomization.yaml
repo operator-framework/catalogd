@@ -1,4 +1,0 @@
-resources:
-- ../default
-- resources/nginx_ingress.yaml 
-
