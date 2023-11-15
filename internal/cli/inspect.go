@@ -3,19 +3,14 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
+	"os"
 
-	"github.com/charmbracelet/glamour"
+	"github.com/alecthomas/chroma/quick"
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/yaml"
 )
 
 var inspectCmd = cobra.Command{
@@ -25,117 +20,49 @@ var inspectCmd = cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pkg, _ := cmd.Flags().GetString("package")
 		catalog, _ := cmd.Flags().GetString("catalog")
+		output, _ := cmd.Flags().GetString("output")
 		schema := args[0]
 		name := args[1]
-		return inspect(schema, pkg, name, catalog)
+		return inspect(schema, pkg, name, catalog, output)
 	},
 }
 
 func init() {
 	inspectCmd.Flags().String("package", "", "specify the FBC object package that should be used to filter the resulting output")
 	inspectCmd.Flags().String("catalog", "", "specify the catalog that should be used. By default it will fetch from all catalogs")
+	inspectCmd.Flags().String("output", "json", "specify the output format. Valid values are 'json' and 'yaml'")
 }
 
-func inspect(schema, pkg, name, catalogName string) error {
-	sc := glamour.DraculaStyleConfig
-	sc.Document.BlockSuffix = ""
-	sc.Document.BlockPrefix = ""
-	tr, err := glamour.NewTermRenderer(glamour.WithStyles(sc))
+func inspect(schema, pkg, name, catalogName, out string) error {
+	cfg := ctrl.GetConfigOrDie()
+	ctx := context.Background()
+
+	catalogs, err := FetchCatalogs(cfg, ctx, WithNameCatalogFilter(catalogName))
 	if err != nil {
 		return err
 	}
 
-	cfg := ctrl.GetConfigOrDie()
-	kubeClient := kubernetes.NewForConfigOrDie(cfg)
-	dynamicClient := dynamic.NewForConfigOrDie(cfg)
-	ctx := context.Background()
-
-	catalogs := &v1alpha1.CatalogList{}
-	if catalogName == "" {
-		// get Catalog list
-		unstructCatalogs, err := dynamicClient.Resource(v1alpha1.GroupVersion.WithResource("catalogs")).List(ctx, v1.ListOptions{})
-		if err != nil {
-			return err
-		}
-
-		err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructCatalogs.UnstructuredContent(), catalogs)
-		if err != nil {
-			return err
-		}
-	} else {
-		// get Catalog
-		unstructCatalog, err := dynamicClient.Resource(v1alpha1.GroupVersion.WithResource("catalogs")).Get(ctx, catalogName, v1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		ctlg := v1alpha1.Catalog{}
-		err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructCatalog.UnstructuredContent(), &ctlg)
-		if err != nil {
-			return err
-		}
-		catalogs.Items = append(catalogs.Items, ctlg)
-	}
-
-	for _, catalog := range catalogs.Items {
-		if !meta.IsStatusConditionTrue(catalog.Status.Conditions, v1alpha1.TypeUnpacked) {
-			continue
-		}
-
-		rw := kubeClient.CoreV1().Services("catalogd-system").ProxyGet(
-			"http",
-			"catalogd-catalogserver",
-			"80",
-			fmt.Sprintf("catalogs/%s/all.json", catalog.Name),
-			map[string]string{},
-		)
-
-		rc, err := rw.Stream(ctx)
-		if err != nil {
-			return fmt.Errorf("getting catalog contents for catalog %q: %w", catalog.Name, err)
-		}
-		defer rc.Close()
-
-		err = declcfg.WalkMetasReader(rc, func(meta *declcfg.Meta, err error) error {
+	err = WriteContents(cfg, ctx, catalogs,
+		func(meta *declcfg.Meta, _ *v1alpha1.Catalog) error {
+			outBytes, err := json.MarshalIndent(meta.Blob, "", "  ")
 			if err != nil {
 				return err
 			}
-
-			if schema != "" {
-				if meta.Schema != schema {
-					return nil
+			if out == "yaml" {
+				outBytes, err = yaml.JSONToYAML(outBytes)
+				if err != nil {
+					return err
 				}
 			}
+			// TODO: This uses ansi escape codes to colorize the output. Unfortunately, this
+			// means it isn't compatible with jq or yq that expect the output to be plain text.
+			return quick.Highlight(os.Stdout, string(outBytes), out, "terminal16m", "dracula")
+		},
+		WithNameContentFilter(name), WithSchemaContentFilter(schema), WithPackageContentFilter(pkg),
+	)
 
-			if pkg != "" {
-				if meta.Package != pkg {
-					return nil
-				}
-			}
-
-			if name != "" {
-				if meta.Name != name {
-					return nil
-				}
-			}
-
-			outJson, err := json.MarshalIndent(meta.Blob, "", "  ")
-			if err != nil {
-				return err
-			}
-			outMd := strings.Builder{}
-			outMd.WriteString("```json\n")
-			outMd.WriteString(string(outJson))
-			outMd.WriteString("\n```\n")
-
-			out, _ := tr.Render(outMd.String())
-			fmt.Print(out)
-			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("reading FBC for catalog %q: %w", catalog.Name, err)
-		}
+	if err != nil {
+		return err
 	}
-
 	return nil
 }

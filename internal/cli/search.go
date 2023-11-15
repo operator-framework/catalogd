@@ -11,37 +11,35 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var listCmd = cobra.Command{
-	Use:   "list [flags]",
-	Short: "Lists catalog objects",
-	Args:  cobra.NoArgs,
+var searchCmd = cobra.Command{
+	Use:   "search [input] [flags]",
+	Short: "Searches catalog objects",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		schema, _ := cmd.Flags().GetString("schema")
 		pkg, _ := cmd.Flags().GetString("package")
-		name, _ := cmd.Flags().GetString("name")
 		catalog, _ := cmd.Flags().GetString("catalog")
+		schema, _ := cmd.Flags().GetString("schema")
 		style, _ := cmd.Flags().GetString("style")
-
-		return list(schema, pkg, name, catalog, style)
+		input := args[0]
+		return search(input, schema, pkg, catalog, style)
 	},
 }
 
 func init() {
-	listCmd.Flags().String("schema", "", "specify the FBC object schema that should be used to filter the resulting output")
-	listCmd.Flags().String("package", "", "specify the FBC object package that should be used to filter the resulting output")
-	listCmd.Flags().String("name", "", "specify the FBC object name that should be used to filter the resulting output")
-	listCmd.Flags().String("catalog", "", "specify the catalog that should be used. By default it will fetch from all catalogs")
-	listCmd.Flags().String("style", "dracula", "specify the style that should be used to render the output")
+	searchCmd.Flags().String("schema", "", "specify the FBC object schema that should be used to filter the resulting output")
+	searchCmd.Flags().String("package", "", "specify the FBC object package that should be used to filter the resulting output")
+	searchCmd.Flags().String("catalog", "", "specify the catalog that should be used. By default it will fetch from all catalogs")
+	searchCmd.Flags().String("style", "dracula", "specify the style that should be used to render the output")
 }
 
-func list(schema, pkg, name, catalogName, style string) error {
+func search(input, schema, pkg, catalogName, style string) error {
 	renderer, err := CatalogdTermRenderer(style)
 	if err != nil {
 		return err
 	}
-
 	cfg := ctrl.GetConfigOrDie()
 	ctx := context.Background()
+
 	catalogs, err := FetchCatalogs(cfg, ctx, WithNameCatalogFilter(catalogName))
 	if err != nil {
 		return err
@@ -60,8 +58,9 @@ func list(schema, pkg, name, catalogName, style string) error {
 			fmt.Print(out)
 			return nil
 		},
-		WithNameContentFilter(name), WithSchemaContentFilter(schema), WithPackageContentFilter(pkg),
+		WithNameContainsContentFilter(input), WithSchemaContentFilter(schema), WithPackageContentFilter(pkg),
 	)
+
 	if err != nil {
 		return err
 	}

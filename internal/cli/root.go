@@ -12,9 +12,12 @@ var root = cobra.Command{
 	Long:  "CLI for interacting with catalogd",
 }
 
+//TODO: Make common global flags
+
 func init() {
 	root.AddCommand(&listCmd)
 	root.AddCommand(&inspectCmd)
+	root.AddCommand(&searchCmd)
 }
 
 func Execute() {

@@ -134,6 +134,10 @@ run: generate kind-cluster install ## Create a kind cluster and install a local 
 build-container: build-linux ## Build docker image for catalogd.
 	docker build -f Dockerfile -t $(IMAGE) bin/linux
 
+.PHONY: build-cli
+build-cli: ## Build the catalogd CLI
+	go build -o bin/catalogd ./cmd/cli/main.go
+
 ##@ Deploy
 
 .PHONY: kind-cluster
