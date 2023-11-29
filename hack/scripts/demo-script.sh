@@ -2,12 +2,11 @@
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 # Welcome to the catalogd demo
-kind delete cluster --name catalogd
 kind delete cluster
 kind create cluster
 kubectl cluster-info --context kind-kind
 sleep 10
-# install CRDs
+# install catalogd on the cluster
 # could also `make install` in repo
 kubectl apply -f https://github.com/operator-framework/catalogd/releases/latest/download/catalogd.yaml
 kubectl wait --for=condition=Available -n catalogd-system deploy/catalogd-controller-manager --timeout=60s
