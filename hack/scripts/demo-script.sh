@@ -17,7 +17,7 @@ kubectl apply -f config/samples/core_v1alpha1_catalog.yaml
 # shows catalog-sample
 kubectl get catalog -A 
 # waiting for catalog to report ready status
-time kubectl wait --for=condition=Unpacked catalog/operatorhubio --timeout=1h
+time kubectl wait --for=condition=Unpacked catalog/operatorhubio --timeout=1m
 
 # port forward the catalogd-catalogserver service to interact with the HTTP server serving catalog contents
 (kubectl -n catalogd-system port-forward svc/catalogd-catalogserver 8080:80)&
@@ -27,5 +27,5 @@ curl http://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select
 # check what channels are included in the wavefront package
 curl http://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select(.schema == "olm.channel") | select(.package == "wavefront") | .name'
 # check what bundles are included in the wavefront package
-curl http://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select(.schema == "olm.bundle") | select(.package == "ack-acm-controller") | .name'
+curl http://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select(.schema == "olm.bundle") | select(.package == "wavefront") | .name'
 
