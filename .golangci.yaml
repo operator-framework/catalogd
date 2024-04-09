@@ -7,6 +7,7 @@ linters:
   - asciicheck
   - bodyclose
   - errorlint
+  - gci
   - ginkgolinter
   - gofmt
   - goimports
@@ -46,6 +47,15 @@ linters-settings:
       alias: rukpakv1alpha1
   goimports:
     local-prefixes: github.com/operator-framework/catalogd
+  
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/operator-framework)
+      - prefix(github.com/operator-framework/catalogd)
+    custom-order: true
 
 output:
-  format: tab
+  formats:
+    - format: tab
