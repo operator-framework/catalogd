@@ -93,7 +93,7 @@ var _ = Describe("Catalog Unpacking", func() {
 			// the ProxyGet() call below needs an explicit port value, so if
 			// value from url.Port() is empty, we assume port 80.
 			if port == "" {
-				port = "80"
+				port = "443"
 			}
 			resp := kubeClient.CoreV1().Services(ns).ProxyGet(url.Scheme, name, port, url.Path, map[string]string{})
 			rc, err := resp.Stream(ctx)
