@@ -14,5 +14,5 @@ kind: Kustomization
 resources:
 - ../crd
 - ../rbac
+- ../certmanager
 - ../manager
-

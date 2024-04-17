@@ -1,0 +1,3 @@
+resources:
+- issuer.yaml
+- certificate.yaml

@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: catalogserver-cert
+  namespace: system
+spec:
+  secretName: catalogd-catalogserver-cert
+  duration: 2160h # 90d
+  renewBefore: 360h # 15d
+  subject:
+    organizations:
+      - operator-framework
+  isCA: false
+  dnsNames:
+    - catalogd-catalogserver.catalogd-system.svc
+  issuerRef:
+    name: catalogd-catalogserver-selfsigned-issuer
+    kind: Issuer
+
