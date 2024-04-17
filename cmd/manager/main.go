@@ -71,9 +71,11 @@ func main() {
 		catalogdVersion      bool
 		systemNamespace      string
 		catalogServerAddr    string
-		httpExternalAddr     string
+		httpsExternalAddr    string
 		cacheDir             string
 		gcInterval           time.Duration
+		certfile             string
+		keyfile              string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -83,10 +85,12 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "The namespace catalogd uses for internal state, configuration, and workloads")
 	flag.StringVar(&catalogServerAddr, "catalogs-server-addr", ":8083", "The address where the unpacked catalogs' content will be accessible")
-	flag.StringVar(&httpExternalAddr, "http-external-address", "http://catalogd-catalogserver.catalogd-system.svc", "The external address at which the http server is reachable.")
+	flag.StringVar(&httpsExternalAddr, "https-external-address", "https://catalogd-catalogserver.catalogd-system.svc", "The external address at which the http server is reachable.")
 	flag.StringVar(&cacheDir, "cache-dir", "/var/cache/", "The directory in the filesystem that catalogd will use for file based caching")
 	flag.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
 	flag.DurationVar(&gcInterval, "gc-interval", 12*time.Hour, "interval in which garbage collection should be run against the catalog content cache")
+	flag.StringVar(&certfile, "tls-cert", "/var/certs/tls.crt", "The certificate file used for serving catalog contents over HTTPS")
+	flag.StringVar(&keyfile, "tls-key", "/var/certs/tls.key", "The key file used for serving catalog contents over HTTPS")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -143,7 +147,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	baseStorageURL, err := url.Parse(fmt.Sprintf("%s/catalogs/", httpExternalAddr))
+	baseStorageURL, err := url.Parse(fmt.Sprintf("%s/catalogs/", httpsExternalAddr))
 	if err != nil {
 		setupLog.Error(err, "unable to create base storage URL")
 		os.Exit(1)
@@ -162,6 +166,9 @@ func main() {
 			WriteTimeout: 5 * time.Minute,
 		},
 		ShutdownTimeout: &shutdownTimeout,
+		ServeTLS:        true,
+		CertFile:        certfile,
+		KeyFile:         keyfile,
 	}
 
 	if err := mgr.Add(&catalogServer); err != nil {

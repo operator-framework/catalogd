@@ -152,7 +152,7 @@ kind-load: $(KIND) ## Load the built images onto the local cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 .PHONY: install
-install: build-container kind-load deploy wait ## Install local catalogd
+install: build-container kind-load cert-manager deploy wait ## Install local catalogd
 
 .PHONY: deploy
 deploy: $(KUSTOMIZE) ## Deploy Catalogd to the K8s cluster specified in ~/.kube/config.
@@ -166,6 +166,10 @@ undeploy: $(KUSTOMIZE) ## Undeploy Catalogd from the K8s cluster specified in ~/
 wait:
 	kubectl wait --for=condition=Available --namespace=$(CATALOGD_NAMESPACE) deployment/catalogd-controller-manager --timeout=60s
 
+.PHONY: cert-manager
+cert-manager:
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/${CERT_MGR_VERSION}/cert-manager.yaml
+	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
 ##@ Release
 
 export ENABLE_RELEASE_PIPELINE ?= false

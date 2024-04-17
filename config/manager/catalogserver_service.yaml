@@ -10,7 +10,7 @@ spec:
   selector:
     control-plane: controller-manager
   ports:
-  - name: http
+  - name: https
     protocol: TCP
-    port: 80
+    port: 443
     targetPort: 8083
