@@ -76,14 +76,12 @@ spec:
         args:
         - --leader-elect
         - --metrics-bind-address=127.0.0.1:8080
-        - --https-external-address=https://catalogd-catalogserver.catalogd-system.svc
+        - --external-address=catalogd-catalogserver.catalogd-system.svc
         image: controller:latest
         name: manager
         volumeMounts:
             - name: cache
               mountPath: /var/cache/
-            - name: catalogserver-certs
-              mountPath: /var/certs/
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -112,6 +110,3 @@ spec:
       volumes:
         - name: cache
           emptyDir: {}
-        - name: catalogserver-certs
-          secret:
-            secretName: catalogd-catalogserver-cert

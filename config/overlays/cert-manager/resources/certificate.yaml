@@ -14,6 +14,6 @@ spec:
   dnsNames:
     - catalogd-catalogserver.catalogd-system.svc
   issuerRef:
-    name: catalogd-catalogserver-selfsigned-issuer
+    name: catalogserver-selfsigned-issuer
     kind: Issuer
 
