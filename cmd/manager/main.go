@@ -17,8 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -71,11 +73,12 @@ func main() {
 		catalogdVersion      bool
 		systemNamespace      string
 		catalogServerAddr    string
-		httpsExternalAddr    string
+		externalAddr         string
 		cacheDir             string
 		gcInterval           time.Duration
-		certfile             string
-		keyfile              string
+		certFile             string
+		keyFile              string
+		listener             net.Listener
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -85,12 +88,12 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "The namespace catalogd uses for internal state, configuration, and workloads")
 	flag.StringVar(&catalogServerAddr, "catalogs-server-addr", ":8083", "The address where the unpacked catalogs' content will be accessible")
-	flag.StringVar(&httpsExternalAddr, "https-external-address", "https://catalogd-catalogserver.catalogd-system.svc", "The external address at which the http server is reachable.")
+	flag.StringVar(&externalAddr, "external-address", "catalogd-catalogserver.catalogd-system.svc", "The external address at which the http(s) server is reachable.")
 	flag.StringVar(&cacheDir, "cache-dir", "/var/cache/", "The directory in the filesystem that catalogd will use for file based caching")
 	flag.BoolVar(&catalogdVersion, "version", false, "print the catalogd version and exit")
 	flag.DurationVar(&gcInterval, "gc-interval", 12*time.Hour, "interval in which garbage collection should be run against the catalog content cache")
-	flag.StringVar(&certfile, "tls-cert", "/var/certs/tls.crt", "The certificate file used for serving catalog contents over HTTPS")
-	flag.StringVar(&keyfile, "tls-key", "/var/certs/tls.key", "The key file used for serving catalog contents over HTTPS")
+	flag.StringVar(&certFile, "tls-cert", "", "The certificate file used for serving catalog contents over HTTPS")
+	flag.StringVar(&keyFile, "tls-key", "", "The key file used for serving catalog contents over HTTPS")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -147,7 +150,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	baseStorageURL, err := url.Parse(fmt.Sprintf("%s/catalogs/", httpsExternalAddr))
+	if certFile != "" && keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			setupLog.Error(err, "unable to load certificate key pair")
+			os.Exit(1)
+		}
+		config := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS13,
+		}
+		listener, err = tls.Listen("tcp", catalogServerAddr, config)
+		if err != nil {
+			setupLog.Error(err, "unable to create HTTPS server listener")
+			os.Exit(1)
+		}
+		externalAddr = "https://" + externalAddr
+	} else {
+		listener, err = net.Listen("tcp", catalogServerAddr)
+		if err != nil {
+			setupLog.Error(err, "unable to create HTTP server listener")
+			os.Exit(1)
+		}
+		externalAddr = "http://" + externalAddr
+	}
+
+	baseStorageURL, err := url.Parse(fmt.Sprintf("%s/catalogs/", externalAddr))
 	if err != nil {
 		setupLog.Error(err, "unable to create base storage URL")
 		os.Exit(1)
@@ -155,6 +183,7 @@ func main() {
 
 	localStorage = storage.LocalDir{RootDir: storeDir, BaseURL: baseStorageURL}
 	shutdownTimeout := 30 * time.Second
+
 	catalogServer := server.Server{
 		Kind: "catalogs",
 		Server: &http.Server{
@@ -166,9 +195,7 @@ func main() {
 			WriteTimeout: 5 * time.Minute,
 		},
 		ShutdownTimeout: &shutdownTimeout,
-		ServeTLS:        true,
-		CertFile:        certfile,
-		KeyFile:         keyfile,
+		Listener:        listener,
 	}
 
 	if err := mgr.Add(&catalogServer); err != nil {

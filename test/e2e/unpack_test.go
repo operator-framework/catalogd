@@ -92,7 +92,7 @@ var _ = Describe("Catalog Unpacking", func() {
 			name := strings.Split(url.Hostname(), ".")[0]
 			port := url.Port()
 			// the ProxyGet() call below needs an explicit port value, so if
-			// value from url.Port() is empty, we assume port 80.
+			// value from url.Port() is empty, we assume port 443.
 			if port == "" {
 				port = "443"
 			}

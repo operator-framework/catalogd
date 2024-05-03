@@ -38,7 +38,7 @@ var (
 	_ manager.LeaderElectionRunnable = (*Server)(nil)
 )
 
-// Server is a general purpose HTTP server Runnable for a manager.
+// Server is a general purpose HTTP(S) server Runnable for a manager.
 // It is used to serve some internal handlers for health probes and profiling,
 // but it can also be used to run custom servers.
 type Server struct {
@@ -62,18 +62,6 @@ type Server struct {
 	// ShutdownTimeout is an optional duration that indicates how long to wait for the server to shutdown gracefully. If not set,
 	// the server will wait indefinitely for all connections to close.
 	ShutdownTimeout *time.Duration
-
-	// ServeTLS is an optional bool that indicates that the server should
-	// serve over HTTPS
-	ServeTLS bool
-
-	// CertFile is the certificate file to use when serving over HTTPS.
-	// Only used and required when ServeTLS is "true".
-	CertFile string
-
-	// KeyFile is the key file to use when serving over HTTPS.
-	// Only used and required when ServeTLS is "true".
-	KeyFile string
 }
 
 // Start starts the server. It will block until the server is stopped or an error occurs.
@@ -128,14 +116,7 @@ func (s *Server) addr() string {
 
 func (s *Server) serve() error {
 	if s.Listener != nil {
-		if s.ServeTLS {
-			return s.Server.ServeTLS(s.Listener, s.CertFile, s.KeyFile)
-		}
 		return s.Server.Serve(s.Listener)
-	}
-
-	if s.ServeTLS {
-		return s.Server.ListenAndServeTLS(s.CertFile, s.KeyFile)
 	}
 
 	return s.Server.ListenAndServe()

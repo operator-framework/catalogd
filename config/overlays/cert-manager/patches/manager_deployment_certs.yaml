@@ -4,4 +4,9 @@
 - op: add
   path: /spec/template/spec/containers/1/volumeMounts/-
   value: {"name":"catalogserver-certs", "mountPath":"/var/certs"}
-
+- op: add
+  path: /spec/template/spec/containers/1/args/-
+  value: "--tls-cert=/var/certs/tls.crt"
+- op: add
+  path: /spec/template/spec/containers/1/args/-
+  value: "--tls-key=/var/certs/tls.key"
