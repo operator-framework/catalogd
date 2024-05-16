@@ -239,8 +239,8 @@ github.com/opencontainers/image-spec v1.1.0 h1:8SG7/vwALn54lVB/0yZ/MMwhFrPYtpEHQ
 github.com/opencontainers/image-spec v1.1.0/go.mod h1:W4s4sFTMaBeK1BQLXbG4AdM2szdn85PY75RI83NrTrM=
 github.com/operator-framework/api v0.24.0 h1:fHynWEzuY/YhUTlsK9hd+QQ0bZcFakxCTdaZbFaVXbc=
 github.com/operator-framework/api v0.24.0/go.mod h1:EXKrka63NyQDDpWZ+DGTDEliNV0xRq6UMZRoUPhilVM=
-github.com/operator-framework/operator-registry v1.41.1-0.20240515193114-7de2fc5e9bbb h1:0tnEiidSKJ5APBZeZrz4sK3MHRT/pDI1oxPslRWTJMQ=
-github.com/operator-framework/operator-registry v1.41.1-0.20240515193114-7de2fc5e9bbb/go.mod h1:885aA8D67sri3OWmNMFcplB/a3K7krWHJkLZUcSqDJ8=
+github.com/operator-framework/operator-registry v1.42.0 h1:nA52riRPqjbPY0fWzLyNlQWCeRNrj6yl6sl1V/i9WlA=
+github.com/operator-framework/operator-registry v1.42.0/go.mod h1:885aA8D67sri3OWmNMFcplB/a3K7krWHJkLZUcSqDJ8=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
