@@ -106,6 +106,24 @@ verify: tidy fmt vet generate ## Verify the current code generation and lint
 lint: $(GOLANGCI_LINT) ## Run golangci linter.
 	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_ARGS)
 
+.PHONY: test-upgrade-e2e
+test-upgrade-e2e: kind-cluster cert-manager build-container kind-load image-registry run-latest-release wait pre-upgrade-setup compare-catalog deploy wait ## Run upgrade e2e tests on a local kind cluster
+test-upgrade-e2e:
+	${MAKE} compare-catalog
+	${MAKE} kind-cluster-cleanup
+
+.PHONY: run-latest-release
+run-latest-release:
+	kubectl apply -f https://github.com/operator-framework/catalogd/releases/latest/download/catalogd.yaml
+
+.PHONY: pre-upgrade-setup
+pre-upgrade-setup:
+	test/tools/imageregistry/pre-upgrade-setup.sh
+
+.PHONY: compare-catalog
+compare-catalog:
+	test/tools/imageregistry/compare-catalog.sh # compare test catalog with expected contents
+
 ##@ Build
 
 BINARIES=manager
@@ -185,6 +203,7 @@ undeploy: $(KUSTOMIZE) ## Undeploy Catalogd from the K8s cluster specified in ~/
 
 wait:
 	kubectl wait --for=condition=Available --namespace=$(CATALOGD_NAMESPACE) deployment/catalogd-controller-manager --timeout=60s
+	kubectl wait --for=condition=Ready --namespace=$(CATALOGD_NAMESPACE) certificate/catalogd-catalogserver-cert # Avoid upgrade test flakes when reissuing cert
 
 .PHONY: cert-manager
 cert-manager:
