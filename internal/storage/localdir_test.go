@@ -145,8 +145,30 @@ var _ = Describe("LocalDir Server Handler tests", func() {
 		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), expectedContent)
 	})
 	It("provides gzipped content for the path /catalogs/test-catalog/all.json with size > 1400 bytes", func() {
-		expectedContent := []byte(testCompressablePackage)
+		expectedContent := []byte(testCompressableJSON)
 		Expect(os.WriteFile(filepath.Join(store.RootDir, "test-catalog", "all.json"), expectedContent, 0600)).To(Succeed())
+		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), expectedContent)
+	})
+	It("provides json-lines format for the served JSON catalog", func() {
+		catalog := "test-catalog"
+		unpackResultFS := &fstest.MapFS{
+			"catalog.json": &fstest.MapFile{Data: []byte(testCompressableJSON), Mode: os.ModePerm},
+		}
+		err := store.Store(context.Background(), catalog, unpackResultFS)
+		Expect(err).To(Not(HaveOccurred()))
+
+		expectedContent := []byte(jsonLinesFormattedCatalogData)
+		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), expectedContent)
+	})
+	It("provides json-lines format for the served YAML catalog", func() {
+		catalog := "test-catalog"
+		unpackResultFS := &fstest.MapFS{
+			"catalog.yaml": &fstest.MapFile{Data: []byte(testCompressableYAML), Mode: os.ModePerm},
+		}
+		err := store.Store(context.Background(), catalog, unpackResultFS)
+		Expect(err).To(Not(HaveOccurred()))
+
+		expectedContent := []byte(jsonLinesFormattedCatalogData)
 		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), expectedContent)
 	})
 	AfterEach(func() {
@@ -219,15 +241,12 @@ entries:
 `
 
 // by default the compressor will only trigger for files larger than 1400 bytes
-const testCompressablePackage = `{
-  "schema": "olm.package",
-  "name": "cockroachdb",
+const testCompressableJSON = `{
   "defaultChannel": "stable-v6.x",
+  "name": "cockroachdb",
+  "schema": "olm.package"
 }
 {
-  "schema": "olm.channel",
-  "name": "stable-5.x",
-  "package": "cockroachdb",
   "entries": [
     {
       "name": "cockroachdb.v5.0.3"
@@ -236,24 +255,26 @@ const testCompressablePackage = `{
       "name": "cockroachdb.v5.0.4",
       "replaces": "cockroachdb.v5.0.3"
     }
-  ]
+  ],
+  "name": "stable-5.x",
+  "package": "cockroachdb",
+  "schema": "olm.channel"
 }
 {
-  "schema": "olm.channel",
-  "name": "stable-v6.x",
-  "package": "cockroachdb",
   "entries": [
     {
       "name": "cockroachdb.v6.0.0",
       "skipRange": "<6.0.0"
     }
-  ]
+  ],
+  "name": "stable-v6.x",
+  "package": "cockroachdb",
+  "schema": "olm.channel"
 }
 {
-  "schema": "olm.bundle",
+  "image": "quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8",
   "name": "cockroachdb.v5.0.3",
   "package": "cockroachdb",
-  "image": "quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8",
   "properties": [
     {
       "type": "olm.gvk",
@@ -284,13 +305,13 @@ const testCompressablePackage = `{
       "name": "",
       "image": "quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8"
     }
-  ]
+  ],
+  "schema": "olm.bundle"
 }
 {
-  "schema": "olm.bundle",
+  "image": "quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63",
   "name": "cockroachdb.v5.0.4",
   "package": "cockroachdb",
-  "image": "quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63",
   "properties": [
     {
       "type": "olm.gvk",
@@ -306,7 +327,7 @@ const testCompressablePackage = `{
         "packageName": "cockroachdb",
         "version": "5.0.4"
       }
-    },
+    }
   ],
   "relatedImages": [
     {
@@ -321,13 +342,13 @@ const testCompressablePackage = `{
       "name": "",
       "image": "quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63"
     }
-  ]
+  ],
+  "schema": "olm.bundle"
 }
 {
-  "schema": "olm.bundle",
+  "image": "quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba",
   "name": "cockroachdb.v6.0.0",
   "package": "cockroachdb",
-  "image": "quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba",
   "properties": [
     {
       "type": "olm.gvk",
@@ -343,7 +364,7 @@ const testCompressablePackage = `{
         "packageName": "cockroachdb",
         "version": "6.0.0"
       }
-    },
+    }
   ],
   "relatedImages": [
     {
@@ -358,6 +379,114 @@ const testCompressablePackage = `{
       "name": "",
       "image": "quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba"
     }
-  ]
+  ],
+  "schema": "olm.bundle"
 }
+`
+
+const testCompressableYAML = `---
+defaultChannel: stable-v6.x
+name: cockroachdb
+schema: olm.package
+---
+entries:
+  - name: cockroachdb.v5.0.3
+  - name: cockroachdb.v5.0.4
+    replaces: cockroachdb.v5.0.3
+name: stable-5.x
+package: cockroachdb
+schema: olm.channel
+---
+entries:
+  - name: cockroachdb.v6.0.0
+    skipRange: <6.0.0
+name: stable-v6.x
+package: cockroachdb
+schema: olm.channel
+---
+image: quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8
+name: cockroachdb.v5.0.3
+package: cockroachdb
+properties:
+  - type: olm.gvk
+    value:
+      group: charts.operatorhub.io
+      kind: Cockroachdb
+      version: v1alpha1
+  - type: olm.package
+    value:
+      packageName: cockroachdb
+      version: 5.0.3
+relatedImages:
+  - name: ""
+    image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+  - name: ""
+    image: quay.io/helmoperators/cockroachdb:v5.0.3
+  - name: ""
+    image: quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8
+schema: olm.bundle
+---
+image: quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63
+name: cockroachdb.v5.0.4
+package: cockroachdb
+properties:
+  - type: olm.gvk
+    value:
+      group: charts.operatorhub.io
+      kind: Cockroachdb
+      version: v1alpha1
+  - type: olm.package
+    value:
+      packageName: cockroachdb
+      version: 5.0.4
+relatedImages:
+  - name: ""
+    image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+  - name: ""
+    image: quay.io/helmoperators/cockroachdb:v5.0.4
+  - name: ""
+    image: quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63
+schema: olm.bundle
+---
+image: quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba
+name: cockroachdb.v6.0.0
+package: cockroachdb
+properties:
+  - type: olm.gvk
+    value:
+      group: charts.operatorhub.io
+      kind: Cockroachdb
+      version: v1alpha1
+  - type: olm.package
+    value:
+      packageName: cockroachdb
+      version: 6.0.0
+relatedImages:
+  - name: ""
+    image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+  - name: ""
+    image: quay.io/cockroachdb/cockroach-helm-operator:6.0.0
+  - name: ""
+    image: quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba
+schema: olm.bundle
+  `
+
+// the JSONlines-compliant format for testCompressableJSON/testCompressableYAML.
+// Transforms to that format are as follows:
+// 1. Remove all newlines
+// 2. Remove all spaces
+// 3. Add a newline after each complete JSON object
+//
+// the last of these prevents just doing
+// var jsonLinesFormattedCatalogData string = strings.ReplaceAll(strings.ReplaceAll(testCompressableJSON, "\n", ""), " ", "")
+//
+// while the source format (expanded JSON) is resilient to extraneous whitespace or EOL commas for terminating entries, this format is not
+//
+// NB: Please update this to align with any changes to testCompressableJSON/testCompressableYAML.
+const jsonLinesFormattedCatalogData = `{"defaultChannel":"stable-v6.x","name":"cockroachdb","schema":"olm.package"}
+{"entries":[{"name":"cockroachdb.v5.0.3"},{"name":"cockroachdb.v5.0.4","replaces":"cockroachdb.v5.0.3"}],"name":"stable-5.x","package":"cockroachdb","schema":"olm.channel"}
+{"entries":[{"name":"cockroachdb.v6.0.0","skipRange":"<6.0.0"}],"name":"stable-v6.x","package":"cockroachdb","schema":"olm.channel"}
+{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8","name":"cockroachdb.v5.0.3","package":"cockroachdb","properties":[{"type":"olm.gvk","value":{"group":"charts.operatorhub.io","kind":"Cockroachdb","version":"v1alpha1"}},{"type":"olm.package","value":{"packageName":"cockroachdb","version":"5.0.3"}}],"relatedImages":[{"image":"gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0","name":""},{"image":"quay.io/helmoperators/cockroachdb:v5.0.3","name":""},{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8","name":""}],"schema":"olm.bundle"}
+{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63","name":"cockroachdb.v5.0.4","package":"cockroachdb","properties":[{"type":"olm.gvk","value":{"group":"charts.operatorhub.io","kind":"Cockroachdb","version":"v1alpha1"}},{"type":"olm.package","value":{"packageName":"cockroachdb","version":"5.0.4"}}],"relatedImages":[{"image":"gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0","name":""},{"image":"quay.io/helmoperators/cockroachdb:v5.0.4","name":""},{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63","name":""}],"schema":"olm.bundle"}
+{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba","name":"cockroachdb.v6.0.0","package":"cockroachdb","properties":[{"type":"olm.gvk","value":{"group":"charts.operatorhub.io","kind":"Cockroachdb","version":"v1alpha1"}},{"type":"olm.package","value":{"packageName":"cockroachdb","version":"6.0.0"}}],"relatedImages":[{"image":"gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0","name":""},{"image":"quay.io/cockroachdb/cockroach-helm-operator:6.0.0","name":""},{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba","name":""}],"schema":"olm.bundle"}
 `
