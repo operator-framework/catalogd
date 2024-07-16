@@ -1,8 +1,11 @@
 package storage
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -11,12 +14,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing/fstest"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/google/go-cmp/cmp"
+	"sigs.k8s.io/yaml"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 )
@@ -157,19 +162,23 @@ var _ = Describe("LocalDir Server Handler tests", func() {
 		err := store.Store(context.Background(), catalog, unpackResultFS)
 		Expect(err).To(Not(HaveOccurred()))
 
-		expectedContent := []byte(jsonLinesFormattedCatalogData)
-		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), expectedContent)
+		expectedContent, err := generateJSONLines([]byte(testCompressableJSON))
+		Expect(err).To(Not(HaveOccurred()))
+		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), []byte(expectedContent))
 	})
 	It("provides json-lines format for the served YAML catalog", func() {
 		catalog := "test-catalog"
+		yamlData, err := makeYAMLFromConcatenatedJSON([]byte(testCompressableJSON))
+		Expect(err).To(Not(HaveOccurred()))
 		unpackResultFS := &fstest.MapFS{
-			"catalog.yaml": &fstest.MapFile{Data: []byte(testCompressableYAML), Mode: os.ModePerm},
+			"catalog.yaml": &fstest.MapFile{Data: yamlData, Mode: os.ModePerm},
 		}
-		err := store.Store(context.Background(), catalog, unpackResultFS)
+		err = store.Store(context.Background(), catalog, unpackResultFS)
 		Expect(err).To(Not(HaveOccurred()))
 
-		expectedContent := []byte(jsonLinesFormattedCatalogData)
-		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), expectedContent)
+		expectedContent, err := generateJSONLines(yamlData)
+		Expect(err).To(Not(HaveOccurred()))
+		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/all.json"), []byte(expectedContent))
 	})
 	AfterEach(func() {
 		testServer.Close()
@@ -194,14 +203,16 @@ func expectFound(url string, expectedContent []byte) {
 	var actualContent []byte
 	switch resp.Header.Get("Content-Encoding") {
 	case "gzip":
-		Expect(len(expectedContent)).To(BeNumerically(">", 1400))
+		Expect(len(expectedContent)).To(BeNumerically(">", 1400),
+			fmt.Sprintf("gzipped content should only be provided for content larger than 1400 bytes, but our expected content is only %d bytes", len(expectedContent)))
 		gz, err := gzip.NewReader(resp.Body)
 		Expect(err).To(Not(HaveOccurred()))
 		actualContent, err = io.ReadAll(gz)
 		Expect(err).To(Not(HaveOccurred()))
 	default:
-		Expect(len(expectedContent)).To(BeNumerically("<", 1400))
 		actualContent, err = io.ReadAll(resp.Body)
+		Expect(len(expectedContent)).To(BeNumerically("<", 1400),
+			fmt.Sprintf("plaintext content should only be provided for content smaller than 1400 bytes, but we received plaintext for %d bytes\n expectedContent:\n%s\n", len(expectedContent), expectedContent))
 		Expect(err).To(Not(HaveOccurred()))
 	}
 
@@ -384,109 +395,51 @@ const testCompressableJSON = `{
 }
 `
 
-const testCompressableYAML = `---
-defaultChannel: stable-v6.x
-name: cockroachdb
-schema: olm.package
----
-entries:
-  - name: cockroachdb.v5.0.3
-  - name: cockroachdb.v5.0.4
-    replaces: cockroachdb.v5.0.3
-name: stable-5.x
-package: cockroachdb
-schema: olm.channel
----
-entries:
-  - name: cockroachdb.v6.0.0
-    skipRange: <6.0.0
-name: stable-v6.x
-package: cockroachdb
-schema: olm.channel
----
-image: quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8
-name: cockroachdb.v5.0.3
-package: cockroachdb
-properties:
-  - type: olm.gvk
-    value:
-      group: charts.operatorhub.io
-      kind: Cockroachdb
-      version: v1alpha1
-  - type: olm.package
-    value:
-      packageName: cockroachdb
-      version: 5.0.3
-relatedImages:
-  - name: ""
-    image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-  - name: ""
-    image: quay.io/helmoperators/cockroachdb:v5.0.3
-  - name: ""
-    image: quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8
-schema: olm.bundle
----
-image: quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63
-name: cockroachdb.v5.0.4
-package: cockroachdb
-properties:
-  - type: olm.gvk
-    value:
-      group: charts.operatorhub.io
-      kind: Cockroachdb
-      version: v1alpha1
-  - type: olm.package
-    value:
-      packageName: cockroachdb
-      version: 5.0.4
-relatedImages:
-  - name: ""
-    image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-  - name: ""
-    image: quay.io/helmoperators/cockroachdb:v5.0.4
-  - name: ""
-    image: quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63
-schema: olm.bundle
----
-image: quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba
-name: cockroachdb.v6.0.0
-package: cockroachdb
-properties:
-  - type: olm.gvk
-    value:
-      group: charts.operatorhub.io
-      kind: Cockroachdb
-      version: v1alpha1
-  - type: olm.package
-    value:
-      packageName: cockroachdb
-      version: 6.0.0
-relatedImages:
-  - name: ""
-    image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-  - name: ""
-    image: quay.io/cockroachdb/cockroach-helm-operator:6.0.0
-  - name: ""
-    image: quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba
-schema: olm.bundle
-  `
+// makeYAMLFromConcatenatedJSON takes a byte slice of concatenated JSON objects and returns a byte slice of concatenated YAML objects.
+func makeYAMLFromConcatenatedJSON(data []byte) ([]byte, error) {
+	var msg json.RawMessage
+	var delimiter = []byte("---\n")
+	var yamlData []byte
 
-// the JSONlines-compliant format for testCompressableJSON/testCompressableYAML.
-// Transforms to that format are as follows:
-// 1. Remove all newlines
-// 2. Remove all spaces
-// 3. Add a newline after each complete JSON object
-//
-// the last of these prevents just doing
-// var jsonLinesFormattedCatalogData string = strings.ReplaceAll(strings.ReplaceAll(testCompressableJSON, "\n", ""), " ", "")
-//
-// while the source format (expanded JSON) is resilient to extraneous whitespace or EOL commas for terminating entries, this format is not
-//
-// NB: Please update this to align with any changes to testCompressableJSON/testCompressableYAML.
-const jsonLinesFormattedCatalogData = `{"defaultChannel":"stable-v6.x","name":"cockroachdb","schema":"olm.package"}
-{"entries":[{"name":"cockroachdb.v5.0.3"},{"name":"cockroachdb.v5.0.4","replaces":"cockroachdb.v5.0.3"}],"name":"stable-5.x","package":"cockroachdb","schema":"olm.channel"}
-{"entries":[{"name":"cockroachdb.v6.0.0","skipRange":"<6.0.0"}],"name":"stable-v6.x","package":"cockroachdb","schema":"olm.channel"}
-{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8","name":"cockroachdb.v5.0.3","package":"cockroachdb","properties":[{"type":"olm.gvk","value":{"group":"charts.operatorhub.io","kind":"Cockroachdb","version":"v1alpha1"}},{"type":"olm.package","value":{"packageName":"cockroachdb","version":"5.0.3"}}],"relatedImages":[{"image":"gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0","name":""},{"image":"quay.io/helmoperators/cockroachdb:v5.0.3","name":""},{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:a5d4f4467250074216eb1ba1c36e06a3ab797d81c431427fc2aca97ecaf4e9d8","name":""}],"schema":"olm.bundle"}
-{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63","name":"cockroachdb.v5.0.4","package":"cockroachdb","properties":[{"type":"olm.gvk","value":{"group":"charts.operatorhub.io","kind":"Cockroachdb","version":"v1alpha1"}},{"type":"olm.package","value":{"packageName":"cockroachdb","version":"5.0.4"}}],"relatedImages":[{"image":"gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0","name":""},{"image":"quay.io/helmoperators/cockroachdb:v5.0.4","name":""},{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63","name":""}],"schema":"olm.bundle"}
-{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba","name":"cockroachdb.v6.0.0","package":"cockroachdb","properties":[{"type":"olm.gvk","value":{"group":"charts.operatorhub.io","kind":"Cockroachdb","version":"v1alpha1"}},{"type":"olm.package","value":{"packageName":"cockroachdb","version":"6.0.0"}}],"relatedImages":[{"image":"gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0","name":""},{"image":"quay.io/cockroachdb/cockroach-helm-operator:6.0.0","name":""},{"image":"quay.io/openshift-community-operators/cockroachdb@sha256:d3016b1507515fc7712f9c47fd9082baf9ccb070aaab58ed0ef6e5abdedde8ba","name":""}],"schema":"olm.bundle"}
-`
+	yamlData = append(yamlData, delimiter...)
+
+	dec := json.NewDecoder(bytes.NewReader(data))
+	for {
+		err := dec.Decode(&msg)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		y, err := yaml.JSONToYAML(msg)
+		if err != nil {
+			return []byte{}, err
+		}
+		yamlData = append(yamlData, delimiter...)
+		yamlData = append(yamlData, y...)
+	}
+	return yamlData, nil
+}
+
+// generateJSONLines takes a byte slice of concatenated JSON objects and returns a JSONlines-formatted string.
+func generateJSONLines(in []byte) (string, error) {
+	var out strings.Builder
+	reader := bytes.NewReader(in)
+
+	err := declcfg.WalkMetasReader(reader, func(meta *declcfg.Meta, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if meta != nil && meta.Blob != nil {
+			if meta.Blob[len(meta.Blob)-1] != '\n' {
+				return fmt.Errorf("blob does not end with newline")
+			}
+		}
+
+		_, err = out.Write(meta.Blob)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return out.String(), err
+}

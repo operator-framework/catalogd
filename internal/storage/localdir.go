@@ -58,12 +58,15 @@ func (s LocalDir) ContentURL(catalog string) string {
 
 func (s LocalDir) StorageServerHandler() http.Handler {
 	mux := http.NewServeMux()
-	wrapped := gzhttp.GzipHandler(http.StripPrefix(s.BaseURL.Path, http.FileServer(http.FS(&filesOnlyFilesystem{os.DirFS(s.RootDir)}))))
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fsHandler := http.FileServer(http.FS(&filesOnlyFilesystem{os.DirFS(s.RootDir)}))
+	spHandler := http.StripPrefix(s.BaseURL.Path, fsHandler)
+	gzHandler := gzhttp.GzipHandler(spHandler)
+
+	typeHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/jsonl")
-		wrapped.ServeHTTP(w, r)
+		gzHandler.ServeHTTP(w, r)
 	})
-	mux.Handle(s.BaseURL.Path, handler)
+	mux.Handle(s.BaseURL.Path, typeHandler)
 	return mux
 }
 
