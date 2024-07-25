@@ -48,7 +48,7 @@ spec:
             properties:
               source:
                 description: |-
-                  source is the source of a Catalog that contains Operators' metadata in the FBC format
+                  source is the source of a Catalog that contains catalog metadata in the FBC format
                   https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
                 properties:
                   image:
@@ -58,7 +58,7 @@ spec:
                       insecureSkipTLSVerify:
                         description: |-
                           insecureSkipTLSVerify indicates that TLS certificate validation should be skipped.
-                          If this option is specified, the HTTP protocol will still be used to
+                          If this option is specified, the HTTPS protocol will still be used to
                           fetch the specified image reference.
                           This should not be used in a production environment.
                         type: boolean
@@ -86,7 +86,6 @@ spec:
                     - image
                     type: string
                 required:
-                - image
                 - type
                 type: object
             required:
@@ -215,6 +214,8 @@ spec:
                   type:
                     description: type defines the kind of Catalog content that was
                       sourced.
+                    enum:
+                    - image
                     type: string
                 required:
                 - image
@@ -222,6 +223,7 @@ spec:
                 type: object
             type: object
         required:
+        - metadata
         - spec
         type: object
     served: true

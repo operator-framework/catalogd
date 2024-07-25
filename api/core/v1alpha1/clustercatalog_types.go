@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +enum
 type SourceType string
 
 const (
@@ -49,9 +50,8 @@ const (
 
 // ClusterCatalog is the Schema for the ClusterCatalogs API
 type ClusterCatalog struct {
-	metav1.TypeMeta `json:",inline"`
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
 
 	Spec ClusterCatalogSpec `json:"spec"`
 	// +optional
@@ -63,8 +63,7 @@ type ClusterCatalog struct {
 // ClusterCatalogList contains a list of ClusterCatalog
 type ClusterCatalogList struct {
 	metav1.TypeMeta `json:",inline"`
-	// +optional
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.ListMeta `json:"metadata"`
 
 	Items []ClusterCatalog `json:"items"`
 }
@@ -72,7 +71,7 @@ type ClusterCatalogList struct {
 // ClusterCatalogSpec defines the desired state of ClusterCatalog
 // +kubebuilder:validation:XValidation:rule="!has(self.source.image.pollInterval) || (self.source.image.ref.find('@sha256:') == \"\")",message="cannot specify PollInterval while using digest-based image"
 type ClusterCatalogSpec struct {
-	// source is the source of a Catalog that contains Operators' metadata in the FBC format
+	// source is the source of a Catalog that contains catalog metadata in the FBC format
 	// https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
 	Source CatalogSource `json:"source"`
 }
@@ -103,15 +102,21 @@ type ClusterCatalogStatus struct {
 // CatalogSource contains the sourcing information for a Catalog
 type CatalogSource struct {
 	// type defines the kind of Catalog content being sourced.
-	// +kubebuilder:validation:Enum=image
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="image"
+	// +kubebuilder:validation:Required
 	Type SourceType `json:"type"`
 	// image is the catalog image that backs the content of this catalog.
-	Image *ImageSource `json:"image"`
+	// +optional
+	Image *ImageSource `json:"image,omitempty"`
 }
 
 // ResolvedCatalogSource contains the information about a sourced Catalog
 type ResolvedCatalogSource struct {
 	// type defines the kind of Catalog content that was sourced.
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="image"
+	// +kubebuilder:validation:Required
 	Type SourceType `json:"type"`
 	// image is the catalog image that backs the content of this catalog.
 	Image *ResolvedImageSource `json:"image"`
@@ -141,7 +146,7 @@ type ImageSource struct {
 	// +optional
 	PollInterval *metav1.Duration `json:"pollInterval,omitempty"`
 	// insecureSkipTLSVerify indicates that TLS certificate validation should be skipped.
-	// If this option is specified, the HTTP protocol will still be used to
+	// If this option is specified, the HTTPS protocol will still be used to
 	// fetch the specified image reference.
 	// This should not be used in a production environment.
 	// +optional
