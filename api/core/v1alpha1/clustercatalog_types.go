@@ -97,6 +97,10 @@ type ClusterCatalogStatus struct {
 	// ClusterCatalog's generation, which is updated on mutation by the API Server.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// CatalogContentTimestamp is the CreationTimestamp representing the server time when the
+	// ClusterCatalog object was created.
+	CatalogContentTimestamp metav1.Time `json:"catalogContentTimestamp,omitempty"`
 }
 
 // CatalogSource contains the sourcing information for a Catalog

@@ -98,6 +98,12 @@ spec:
           status:
             description: ClusterCatalogStatus defines the observed state of ClusterCatalog
             properties:
+              catalogContentTimestamp:
+                description: |-
+                  CatalogContentTimestamp is the CreationTimestamp representing the server time when the
+                  ClusterCatalog object was created.
+                format: date-time
+                type: string
               conditions:
                 description: conditions store the status conditions of the ClusterCatalog
                   instances
