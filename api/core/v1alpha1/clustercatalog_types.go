@@ -46,7 +46,7 @@ const (
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
+//+kubebuilder:printcolumn:name=UnpackedTime,type=date,JSONPath=`.metadata.catalogContentTimestamp`
 
 // ClusterCatalog is the Schema for the ClusterCatalogs API
 type ClusterCatalog struct {
@@ -100,6 +100,7 @@ type ClusterCatalogStatus struct {
 
 	// CatalogContentTimestamp is the CreationTimestamp representing the server time when the
 	// ClusterCatalog object was created.
+	// +optional
 	CatalogContentTimestamp metav1.Time `json:"catalogContentTimestamp,omitempty"`
 }
 
