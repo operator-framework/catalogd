@@ -160,7 +160,7 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 		}
 		contentURL = r.Storage.ContentURL(catalog.Name)
 
-		updateStatusUnpacked(&catalog.Status, unpackResult, contentURL, catalog.Generation)
+		updateStatusUnpacked(&catalog.Status, unpackResult, contentURL, catalog.Generation, catalog.GetObjectMeta().GetCreationTimestamp())
 
 		var requeueAfter time.Duration
 		switch catalog.Spec.Source.Type {
@@ -198,11 +198,12 @@ func updateStatusUnpacking(status *v1alpha1.ClusterCatalogStatus, result *source
 	})
 }
 
-func updateStatusUnpacked(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64) {
+func updateStatusUnpacked(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64, catalogContentTimestamp metav1.Time) {
 	status.ResolvedSource = result.ResolvedSource
 	status.ContentURL = contentURL
 	status.Phase = v1alpha1.PhaseUnpacked
 	status.ObservedGeneration = generation
+	status.CatalogContentTimestamp = catalogContentTimestamp
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type:    v1alpha1.TypeUnpacked,
 		Status:  metav1.ConditionTrue,
