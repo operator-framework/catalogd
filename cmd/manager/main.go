@@ -81,6 +81,7 @@ func main() {
 		certFile             string
 		keyFile              string
 		webhookPort          int
+		pullSecret           string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -97,6 +98,7 @@ func main() {
 	flag.StringVar(&certFile, "tls-cert", "", "The certificate file used for serving catalog contents over HTTPS. Requires tls-key.")
 	flag.StringVar(&keyFile, "tls-key", "", "The key file used for serving catalog contents over HTTPS. Requires tls-cert.")
 	flag.IntVar(&webhookPort, "webhook-server-port", 9443, "The port that the mutating webhook server serves at.")
+	flag.StringVar(&pullSecret, "pull-secret", "", "The pull secret specified as namespace/name used when getting catalogs from private registries")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -175,7 +177,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNamespace, cacheDir)
+	unpacker, err := source.NewDefaultUnpacker(systemNamespace, cacheDir, pullSecret)
 	if err != nil {
 		setupLog.Error(err, "unable to create unpacker")
 		os.Exit(1)

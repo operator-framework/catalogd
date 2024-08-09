@@ -31,6 +31,7 @@ import (
 type ImageRegistry struct {
 	BaseCachePath string
 	AuthNamespace string
+	PullSecret    string
 }
 
 const ConfigDirLabel = "operators.operatorframework.io.index.configs.v1"
@@ -58,6 +59,22 @@ func (i *ImageRegistry) Unpack(ctx context.Context, catalog *catalogdv1alpha1.Cl
 			// TODO: Do we want to use any secrets that are included in the catalogd service account?
 			// If so, we will need to add the permission to get service accounts and specify
 			// the catalogd service account name here.
+			ServiceAccountName: gcrkube.NoServiceAccount,
+		}
+		authChain, err := k8schain.NewInCluster(ctx, chainOpts)
+		if err != nil {
+			return nil, fmt.Errorf("error getting auth keychain: %w", err)
+		}
+
+		remoteOpts = append(remoteOpts, remote.WithAuthFromKeychain(authChain))
+	}
+
+	// Use global pull secret if provided
+	if i.PullSecret != "" && len(i.PullSecret) > 0 {
+		pullSecret := strings.Split(i.PullSecret, "/")
+		chainOpts := k8schain.Options{
+			ImagePullSecrets:   []string{pullSecret[1]},
+			Namespace:          pullSecret[0],
 			ServiceAccountName: gcrkube.NoServiceAccount,
 		}
 		authChain, err := k8schain.NewInCluster(ctx, chainOpts)

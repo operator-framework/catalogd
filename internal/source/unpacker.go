@@ -110,7 +110,7 @@ const UnpackCacheDir = "unpack"
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(namespace, cacheDir string) (Unpacker, error) {
+func NewDefaultUnpacker(namespace, cacheDir, pullSecret string) (Unpacker, error) {
 	unpackPath := path.Join(cacheDir, UnpackCacheDir)
 	if err := os.MkdirAll(unpackPath, 0700); err != nil {
 		return nil, fmt.Errorf("creating unpack cache directory: %w", err)
@@ -120,6 +120,7 @@ func NewDefaultUnpacker(namespace, cacheDir string) (Unpacker, error) {
 		catalogdv1alpha1.SourceTypeImage: &ImageRegistry{
 			BaseCachePath: unpackPath,
 			AuthNamespace: namespace,
+			PullSecret:    pullSecret,
 		},
 	}), nil
 }
