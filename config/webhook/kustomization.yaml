@@ -1,0 +1,10 @@
+resources:
+  - catalogd-webhook-deployment.yaml
+  - catalogd-webhook-service.yaml
+  - catalogd-mutating_webhook_configuration.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: webhook
+    newName: ${IMAGE_REPO}
+    newTag: ${IMAGE_TAG}

@@ -1,0 +1,25 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: catalogd-mutating-webhook
+  annotations:
+      cert-manager.io/inject-ca-from-secret: cert-manager/olmv1-ca
+webhooks:
+  - name: "webhook.clustercatalog.io"
+    clientConfig:
+      # No caBundle here; cert-manager will handle the certificate management
+      service:
+        namespace: olmv1-system
+        name: catalogd-webhook-service
+        path: /mutate-olm-operatorframework-io-v1alpha1-clustercatalog
+        port: 443
+    failurePolicy: Ignore
+    rules:
+      - apiGroups: ["olm.operatorframework.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clustercatalogs"]
+        scope: "*"
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    timeoutSeconds: 10
