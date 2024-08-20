@@ -1,6 +1,7 @@
 module github.com/operator-framework/catalogd
 
-go 1.22.0
+go 1.22.5
+
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/containerd/containerd v1.7.20
