@@ -160,7 +160,15 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 		}
 		contentURL = r.Storage.ContentURL(catalog.Name)
 
-		updateStatusUnpacked(&catalog.Status, unpackResult, contentURL, catalog.Generation, unpackResult.ResolvedSource.Image.LastUnpacked)
+		var lastUnpacked metav1.Time
+
+		if unpackResult != nil && unpackResult.ResolvedSource != nil && unpackResult.ResolvedSource.Image != nil {
+			lastUnpacked = unpackResult.ResolvedSource.Image.LastUnpacked
+		} else {
+			lastUnpacked = metav1.Time{}
+		}
+
+		updateStatusUnpacked(&catalog.Status, unpackResult, contentURL, catalog.Generation, lastUnpacked)
 
 		var requeueAfter time.Duration
 		switch catalog.Spec.Source.Type {
