@@ -3,10 +3,12 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
 // ClusterCatalog wraps the external v1alpha1.ClusterCatalog type and implements admission.Defaulter

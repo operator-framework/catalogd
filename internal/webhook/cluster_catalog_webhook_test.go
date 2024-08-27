@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
 func TestClusterCatalogDefaulting(t *testing.T) {
