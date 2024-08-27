@@ -6,14 +6,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
+// Define a dummy struct that implements runtime.Object but isn't a ClusterCatalog
+type NotClusterCatalog struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+}
+
+func (n *NotClusterCatalog) DeepCopyObject() runtime.Object {
+	return &NotClusterCatalog{}
+}
+
 func TestClusterCatalogDefaulting(t *testing.T) {
 	tests := map[string]struct {
-		clusterCatalog *v1alpha1.ClusterCatalog
+		clusterCatalog runtime.Object
 		expectedLabels map[string]string
+		expectError    bool
+		errorMessage   string
 	}{
 		"no labels provided, name label added": {
 			clusterCatalog: &v1alpha1.ClusterCatalog{
@@ -24,6 +37,7 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 			expectedLabels: map[string]string{
 				"name": "test-catalog",
 			},
+			expectError: false,
 		},
 		"labels already present, name label added": {
 			clusterCatalog: &v1alpha1.ClusterCatalog{
@@ -38,6 +52,7 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 				"name":     "test-catalog",
 				"existing": "label",
 			},
+			expectError: false,
 		},
 		"name label already present, no changes": {
 			clusterCatalog: &v1alpha1.ClusterCatalog{
@@ -51,6 +66,18 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 			expectedLabels: map[string]string{
 				"name": "test-catalog", // Defaulting should still override this to match the object name
 			},
+			expectError: false,
+		},
+		"invalid object type, expect error": {
+			clusterCatalog: &NotClusterCatalog{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "NotClusterCatalog",
+					APIVersion: "v1",
+				},
+			},
+			expectedLabels: nil,
+			expectError:    true,
+			errorMessage:   "expected a ClusterCatalog but got a *webhook.NotClusterCatalog",
 		},
 	}
 
@@ -63,8 +90,16 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 			err := clusterCatalogWrapper.Default(context.TODO(), tc.clusterCatalog)
 
 			// Assert
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedLabels, tc.clusterCatalog.Labels)
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errorMessage)
+			} else {
+				assert.NoError(t, err)
+				if tc.expectedLabels != nil {
+					labels := tc.clusterCatalog.(*v1alpha1.ClusterCatalog).Labels
+					assert.Equal(t, tc.expectedLabels, labels)
+				}
+			}
 		})
 	}
 }
