@@ -17,6 +17,7 @@ import (
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+	"github.com/operator-framework/catalogd/internal/version"
 	"github.com/operator-framework/catalogd/internal/webhook"
 )
 
@@ -38,16 +39,12 @@ func main() {
 	var systemNamespace string
 	var webhookVersion bool
 	var enableHTTP2 bool
-	var tlsCertFile string
-	var tlsKeyFile string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "olmv1-system", "Configures the namespace that gets used to deploy system resources.")
 	flag.BoolVar(&webhookVersion, "version", false, "Displays webhook version information")
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the webhook servers.")
-	flag.StringVar(&tlsCertFile, "tls-cert", "/var/certs/tls.crt", "Path to the TLS certificate file.")
-	flag.StringVar(&tlsKeyFile, "tls-key", "/var/certs/tls.key", "Path to the TLS key file.")
 
 	opts := zap.Options{
 		Development: true,
@@ -56,7 +53,7 @@ func main() {
 	flag.Parse()
 
 	if webhookVersion {
-		fmt.Println("Webhook version information here")
+		fmt.Printf("%#v\n", version.Version()) // just using same version as catalogd operator for now
 		os.Exit(0)
 	}
 

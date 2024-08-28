@@ -23,9 +23,6 @@ spec:
           volumeMounts:
             - name: catalogserver-certs  # Match the operator's cert volume
               mountPath: /var/certs  # Match the operator's cert path
-          args:
-            - "--tls-cert=/var/certs/tls.crt"  # Use the same cert file
-            - "--tls-key=/var/certs/tls.key"  # Use the same key file
       volumes:
         - name: catalogserver-certs  # Reuse the operator's secret
           secret:
