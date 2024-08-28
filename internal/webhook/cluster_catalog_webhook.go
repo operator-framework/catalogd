@@ -23,12 +23,12 @@ func (r *ClusterCatalog) Default(ctx context.Context, obj runtime.Object) error 
 		return fmt.Errorf("expected a ClusterCatalog but got a %T", obj)
 	}
 
-	// Defaulting logic: add the "name" label with the value set to the object's Name
+	// Defaulting logic: add the "olm.operatorframework.io/name" label
 	if catalog.Labels == nil {
 		catalog.Labels = map[string]string{}
 	}
-	catalog.Labels["name"] = catalog.GetName()
-	log.Info("default", "name", catalog.Name, "labels", catalog.Labels)
+	catalog.Labels["olm.operatorframework.io/name"] = catalog.GetName()
+	log.Info("default", "olm.operatorframework.io/name", catalog.Name, "labels", catalog.Labels)
 
 	return nil
 }
