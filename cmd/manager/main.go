@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/url"
@@ -35,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	corecontrollers "github.com/operator-framework/catalogd/internal/controllers/core"
@@ -45,6 +47,7 @@ import (
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/storage"
 	"github.com/operator-framework/catalogd/internal/version"
+	"github.com/operator-framework/catalogd/internal/webhook"
 )
 
 var (
@@ -75,6 +78,7 @@ func main() {
 		gcInterval           time.Duration
 		certFile             string
 		keyFile              string
+		webhookPort          int
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -90,6 +94,7 @@ func main() {
 	flag.DurationVar(&gcInterval, "gc-interval", 12*time.Hour, "interval in which garbage collection should be run against the catalog content cache")
 	flag.StringVar(&certFile, "tls-cert", "", "The certificate file used for serving catalog contents over HTTPS. Requires tls-key.")
 	flag.StringVar(&keyFile, "tls-key", "", "The key file used for serving catalog contents over HTTPS. Requires tls-cert.")
+	flag.IntVar(&webhookPort, "webhook-server-port", 9443, "The port that the mutating webhook server serves at.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -119,6 +124,13 @@ func main() {
 	externalAddr = protocol + externalAddr
 
 	cfg := ctrl.GetConfigOrDie()
+
+	webhookServer := crwebhook.NewServer(crwebhook.Options{
+		CertDir: "/var/certs", // Directory where the cert files are stored
+		TLSOpts: []func(config *tls.Config){},
+		Port:    webhookPort,
+	})
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
@@ -128,6 +140,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "catalogd-operator-lock",
+		WebhookServer:          webhookServer,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -217,9 +230,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
+	// mutating webhook that labels ClusterCatalogs with name label
+	if err = (&webhook.ClusterCatalog{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ClusterCatalog")
+		os.Exit(1)
+	}
+
+	setupLog.Info("starting mutating webhook manager")
 	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.Error(err, "problem running mutating webhook manager")
 		os.Exit(1)
 	}
 }

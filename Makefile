@@ -131,7 +131,7 @@ post-upgrade-checks: $(GINKGO)
 
 ##@ Build
 
-BINARIES=manager webhook
+BINARIES=manager
 LINUX_BINARIES=$(join $(addprefix linux/,$(BINARIES)), )
 
 # Build info
@@ -180,9 +180,8 @@ $(LINUX_BINARIES):
 run: generate kind-cluster install ## Create a kind cluster and install a local build of catalogd
 
 .PHONY: build-container
-build-container: build-linux ## Build docker images for catalogd and mutating-webhook.
+build-container: build-linux ## Build docker image for catalogd.
 	docker build -f Dockerfile -t $(IMAGE) bin/linux
-	docker build -f Dockerfile.mutating-webhook -t $(IMAGE)-mutating-webhook bin/linux
 
 ##@ Deploy
 
@@ -199,7 +198,6 @@ kind-cluster-cleanup: $(KIND) ## Delete the kind cluster
 kind-load: $(KIND) ## Load the built images onto the local cluster
 	$(KIND) export kubeconfig --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image $(IMAGE)-mutating-webhook --name $(KIND_CLUSTER_NAME)
 
 .PHONY: install
 install: build-container kind-load deploy wait ## Install local catalogd
@@ -208,12 +206,10 @@ install: build-container kind-load deploy wait ## Install local catalogd
 deploy: export MANIFEST="./catalogd.yaml"
 deploy: export DEFAULT_CATALOGS="./config/base/default/clustercatalogs/default-catalogs.yaml"
 deploy: $(KUSTOMIZE) ## Deploy Catalogd to the K8s cluster specified in ~/.kube/config with cert-manager and default clustercatalogs
-	$(KUSTOMIZE) build config/base/manager | kubectl apply -f -
-	#cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMAGE) && cd ../../..
+	cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMAGE) && cd ../../..
 	$(KUSTOMIZE) build config/overlays/cert-manager > catalogd.yaml
 	envsubst '$$CERT_MGR_VERSION,$$MANIFEST,$$DEFAULT_CATALOGS' < scripts/install.tpl.sh | bash -s
-	$(KUSTOMIZE) build config/webhook | envsubst | kubectl apply -f -
-	kubectl rollout status deployment/catalogd-webhook -n $(CATALOGD_NAMESPACE)  # Wait for webhook to be ready
+	# Apply the annotation because cert-manager admission webhook blocks cert-manager.io/ usage in secretTemplates
 	kubectl annotate secret olmv1-ca -n cert-manager cert-manager.io/allow-direct-injection="true"
 
 .PHONY: only-deploy-manifest
