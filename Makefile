@@ -214,6 +214,7 @@ deploy: $(KUSTOMIZE) ## Deploy Catalogd to the K8s cluster specified in ~/.kube/
 
 .PHONY: only-deploy-manifest
 only-deploy-manifest: $(KUSTOMIZE) ## Deploy just the Catalogd manifest--used in e2e testing where cert-manager is installed in a separate step
+	kubectl delete deployment catalogd-controller-manager -n $(CATALOGD_NAMESPACE) || true
 	cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMAGE)
 	$(KUSTOMIZE) build config/overlays/cert-manager | kubectl apply -f -
 
