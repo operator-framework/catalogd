@@ -19,7 +19,6 @@ spec:
   selector:
     matchLabels:
       control-plane: catalogd-controller-manager
-      app.kubernetes.io/name: catalogd-webhook
   replicas: 1
   template:
     metadata:
@@ -27,7 +26,6 @@ spec:
         kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: catalogd-controller-manager
-        app.kubernetes.io/name: catalogd-webhook
     spec:
       affinity:
         nodeAffinity:

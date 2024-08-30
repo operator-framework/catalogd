@@ -67,7 +67,8 @@ clean: ## Remove binaries and test artifacts
 .PHONY: generate
 generate: $(CONTROLLER_GEN) ## Generate code and manifests.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/base/crd/bases output:rbac:artifacts:config=config/base/rbac
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd paths="./..." output:crd:artifacts:config=config/base/crd/bases output:rbac:artifacts:config=config/base/rbac
+	$(CONTROLLER_GEN) webhook paths="./internal/webhook" output:webhook:artifacts:config=config/base/manager/webhook/
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -214,7 +215,6 @@ deploy: $(KUSTOMIZE) ## Deploy Catalogd to the K8s cluster specified in ~/.kube/
 
 .PHONY: only-deploy-manifest
 only-deploy-manifest: $(KUSTOMIZE) ## Deploy just the Catalogd manifest--used in e2e testing where cert-manager is installed in a separate step
-	kubectl delete deployment catalogd-controller-manager -n $(CATALOGD_NAMESPACE) || true
 	cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMAGE)
 	$(KUSTOMIZE) build config/overlays/cert-manager | kubectl apply -f -
 

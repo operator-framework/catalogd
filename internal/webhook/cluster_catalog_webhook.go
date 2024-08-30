@@ -11,6 +11,8 @@ import (
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
+// +kubebuilder:webhook:admissionReviewVersions={v1},failurePolicy=Fail,groups=olm.operatorframework.io,mutating=true,name=webhook.clustercatalog.io,path=/mutate-olm-operatorframework-io-v1alpha1-clustercatalog,resources=clustercatalogs,verbs=create;update,versions=v1alpha1,failurePolicy=ignore,sideEffects=None,timeoutSeconds=10
+
 // ClusterCatalog wraps the external v1alpha1.ClusterCatalog type and implements admission.Defaulter
 type ClusterCatalog struct{}
 
@@ -23,11 +25,11 @@ func (r *ClusterCatalog) Default(ctx context.Context, obj runtime.Object) error 
 		return fmt.Errorf("expected a ClusterCatalog but got a %T", obj)
 	}
 
-	// Defaulting logic: add the "olm.operatorframework.io/name" label
+	// Defaulting logic: add the "olm.operatorframework.io/metadata.name" label
 	if catalog.Labels == nil {
 		catalog.Labels = map[string]string{}
 	}
-	catalog.Labels["olm.operatorframework.io/name"] = catalog.GetName()
+	catalog.Labels["olm.operatorframework.io/metadata.name"] = catalog.GetName()
 	log.Info("default", "olm.operatorframework.io/name", catalog.Name, "labels", catalog.Labels)
 
 	return nil
