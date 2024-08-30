@@ -35,7 +35,7 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				"olm.operatorframework.io/name": "test-catalog",
+				"olm.operatorframework.io/metadata.name": "test-catalog",
 			},
 			expectError: false,
 		},
@@ -49,8 +49,8 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				"olm.operatorframework.io/name": "test-catalog",
-				"existing":                      "label",
+				"olm.operatorframework.io/metadata.name": "test-catalog",
+				"existing":                               "label",
 			},
 			expectError: false,
 		},
@@ -59,12 +59,12 @@ func TestClusterCatalogDefaulting(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-catalog",
 					Labels: map[string]string{
-						"olm.operatorframework.io/name": "existing-name",
+						"olm.operatorframework.io/metadata.name": "existing-name",
 					},
 				},
 			},
 			expectedLabels: map[string]string{
-				"olm.operatorframework.io/name": "test-catalog", // Defaulting should still override this to match the object name
+				"olm.operatorframework.io/metadata.name": "test-catalog", // Defaulting should still override this to match the object name
 			},
 			expectError: false,
 		},
