@@ -209,8 +209,6 @@ deploy: $(KUSTOMIZE) ## Deploy Catalogd to the K8s cluster specified in ~/.kube/
 	cd config/base/manager && $(KUSTOMIZE) edit set image controller=$(IMAGE) && cd ../../..
 	$(KUSTOMIZE) build config/overlays/cert-manager > catalogd.yaml
 	envsubst '$$CERT_MGR_VERSION,$$MANIFEST,$$DEFAULT_CATALOGS' < scripts/install.tpl.sh | bash -s
-	# Apply the annotation because cert-manager admission webhook blocks cert-manager.io/ usage in secretTemplates
-	kubectl annotate secret olmv1-ca -n cert-manager cert-manager.io/allow-direct-injection="true"
 
 .PHONY: only-deploy-manifest
 only-deploy-manifest: $(KUSTOMIZE) ## Deploy just the Catalogd manifest--used in e2e testing where cert-manager is installed in a separate step
