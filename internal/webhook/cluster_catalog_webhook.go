@@ -13,6 +13,8 @@ import (
 
 // +kubebuilder:webhook:admissionReviewVersions={v1},failurePolicy=Fail,groups=olm.operatorframework.io,mutating=true,name=webhook.clustercatalog.io,path=/mutate-olm-operatorframework-io-v1alpha1-clustercatalog,resources=clustercatalogs,verbs=create;update,versions=v1alpha1,failurePolicy=ignore,sideEffects=None,timeoutSeconds=10
 
+// +kubebuilder:rbac:groups=catalogd.operatorframework.io,resources=clustercatalogs,verbs=get;list;watch;patch;update
+
 // ClusterCatalog wraps the external v1alpha1.ClusterCatalog type and implements admission.Defaulter
 type ClusterCatalog struct{}
 
