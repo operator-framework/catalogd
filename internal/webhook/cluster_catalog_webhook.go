@@ -30,7 +30,7 @@ func (r *ClusterCatalog) Default(ctx context.Context, obj runtime.Object) error 
 		catalog.Labels = map[string]string{}
 	}
 	catalog.Labels["olm.operatorframework.io/metadata.name"] = catalog.GetName()
-	log.Info("default", "olm.operatorframework.io/name", catalog.Name, "labels", catalog.Labels)
+	log.Info("default", "olm.operatorframework.io/metadata.name", catalog.Name, "labels", catalog.Labels)
 
 	return nil
 }

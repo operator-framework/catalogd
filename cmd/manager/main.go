@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/client-go/metadata"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -125,10 +128,24 @@ func main() {
 
 	cfg := ctrl.GetConfigOrDie()
 
+	cw, err := certwatcher.New(certFile, keyFile)
+	if err != nil {
+		log.Fatalf("Failed to initialize certificate watcher: %v", err)
+	}
+
+	go func() {
+		if err := cw.Start(context.Background()); err != nil {
+			log.Fatalf("Certificate watcher failed: %v", err)
+		}
+	}()
+
 	webhookServer := crwebhook.NewServer(crwebhook.Options{
-		CertDir: "/var/certs", // Directory where the cert files are stored
-		TLSOpts: []func(config *tls.Config){},
-		Port:    webhookPort,
+		Port: webhookPort,
+		TLSOpts: []func(*tls.Config){
+			func(cfg *tls.Config) {
+				cfg.GetCertificate = cw.GetCertificate
+			},
+		},
 	})
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{

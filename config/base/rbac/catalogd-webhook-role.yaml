@@ -13,6 +13,3 @@ rules:
       - watch
       - patch
       - update
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources: ["mutatingwebhookconfigurations"]
-    verbs: ["create", "patch", "delete"]
