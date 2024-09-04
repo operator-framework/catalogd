@@ -1,3 +1,4 @@
+# None of these values can be set via the kubebuilder directive, hence this patch
 - op: replace
   path: /webhooks/0/clientConfig/service/namespace
   value: olmv1-system

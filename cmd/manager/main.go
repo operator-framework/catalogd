@@ -257,7 +257,7 @@ func main() {
 
 	setupLog.Info("starting mutating webhook manager")
 	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running mutating webhook manager")
+		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }
