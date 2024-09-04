@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -133,12 +132,7 @@ func main() {
 		log.Fatalf("Failed to initialize certificate watcher: %v", err)
 	}
 
-	go func() {
-		if err := cw.Start(context.Background()); err != nil {
-			log.Fatalf("Certificate watcher failed: %v", err)
-		}
-	}()
-
+	// Create webhook server and configure TLS
 	webhookServer := crwebhook.NewServer(crwebhook.Options{
 		Port: webhookPort,
 		TLSOpts: []func(*tls.Config){
@@ -148,6 +142,7 @@ func main() {
 		},
 	})
 
+	// Create manager
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
@@ -161,6 +156,13 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create manager")
+		os.Exit(1)
+	}
+
+	// Add the certificate watcher to the manager
+	err = mgr.Add(cw)
+	if err != nil {
+		setupLog.Error(err, "unable to add certificate watcher to manager")
 		os.Exit(1)
 	}
 
