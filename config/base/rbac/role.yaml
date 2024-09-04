@@ -5,16 +5,6 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - catalogd.operatorframework.io
-  resources:
-  - clustercatalogs
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ""
   resources:
   - pods
