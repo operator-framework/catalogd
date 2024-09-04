@@ -160,7 +160,7 @@ func main() {
 		WebhookServer:          webhookServer,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to create manager")
 		os.Exit(1)
 	}
 
@@ -204,7 +204,7 @@ func main() {
 		LocalStorage: localStorage,
 	}
 
-	err = serverutil.AddCatalogServerToManager(mgr, catalogServerConfig)
+	err = serverutil.AddCatalogServerToManager(mgr, catalogServerConfig, cw)
 	if err != nil {
 		setupLog.Error(err, "unable to configure catalog server")
 		os.Exit(1)
