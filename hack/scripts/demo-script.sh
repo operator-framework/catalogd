@@ -15,7 +15,7 @@ sleep 10
 kubectl get crds -A
 
 # create a catalog
-kubectl apply -f config/samples/core_v1alpha1_catalog.yaml
+kubectl apply -f config/samples/core_v1_clustercatalog.yaml
 # shows catalog-sample
 kubectl get catalog -A 
 # waiting for catalog to report ready status

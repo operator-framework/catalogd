@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	catalogd "github.com/operator-framework/catalogd/api/core/v1alpha1"
+	catalogd "github.com/operator-framework/catalogd/api/core/v1"
 )
 
 const (

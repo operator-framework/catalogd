@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	catalogd "github.com/operator-framework/catalogd/api/core/v1alpha1"
+	catalogd "github.com/operator-framework/catalogd/api/core/v1"
 	"github.com/operator-framework/catalogd/test/e2e"
 )
 
