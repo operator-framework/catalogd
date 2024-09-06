@@ -112,7 +112,7 @@ spec:
                       When this field is set to "image", the ClusterCatalog content will be sourced from an OCI image.
                       When using an image source, the image field must be set and must be the only field defined for this type.
                     enum:
-                    - image
+                    - Image
                     type: string
                 required:
                 - type
@@ -210,16 +210,10 @@ spec:
                 type: string
               lastUnpacked:
                 description: |-
-                  lastUnpacked represents the time when the
+                  LastUnpacked represents the time when the
                   ClusterCatalog object was last unpacked.
                 format: date-time
                 type: string
-              observedGeneration:
-                description: |-
-                  observedGeneration is the most recent generation observed for this ClusterCatalog. It corresponds to the
-                  ClusterCatalog's generation, which is updated on mutation by the API Server.
-                format: int64
-                type: integer
               resolvedSource:
                 description: |-
                   resolvedSource contains information about the resolved source based on the source type.
@@ -238,29 +232,24 @@ spec:
                     description: image is a field containing resolution information
                       for a catalog sourced from an image.
                     properties:
-                      lastPollAttempt:
-                        description: lastPollAttempt is the time when the source image
-                          was last polled for new content.
+                      lastSuccessfulPollAttempt:
+                        description: lastSuccessfulPollAttempt is the time when the
+                          resolved source was last successfully polled for new content.
                         format: date-time
                         type: string
                       lastUnpacked:
-                        description: lastUnpacked is the last time when the Catalog
-                          contents were successfully unpacked.
+                        description: LastUnpacked is the time when the catalog contents
+                          were successfully unpacked.
                         format: date-time
                         type: string
                       ref:
-                        description: ref is the reference to a container image containing
+                        description: ref contains the resolved sha256 image ref containing
                           Catalog contents.
                         type: string
-                      resolvedRef:
-                        description: resolvedRef is the resolved sha256 image ref
-                          containing Catalog contents.
-                        type: string
                     required:
-                    - lastPollAttempt
+                    - lastSuccessfulPollAttempt
                     - lastUnpacked
                     - ref
-                    - resolvedRef
                     type: object
                   type:
                     description: |-

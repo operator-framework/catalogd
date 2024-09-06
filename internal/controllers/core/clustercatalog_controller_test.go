@@ -391,16 +391,13 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL:         "URL",
-					LastUnpacked:       metav1.Time{},
-					ObservedGeneration: 0,
+					ContentURL:   "URL",
+					LastUnpacked: metav1.Time{},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: "image",
 						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref:             "",
-							ResolvedRef:     "",
-							LastPollAttempt: metav1.Time{},
-							LastUnpacked:    metav1.Time{},
+							Ref:          "",
+							LastUnpacked: metav1.Time{},
 						},
 					},
 					Conditions: []metav1.Condition{
@@ -748,13 +745,11 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 							Reason: catalogdv1alpha1.ReasonAvailable,
 						},
 					},
-					ObservedGeneration: 2,
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: "image",
 						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref:             "someimage:latest",
-							ResolvedRef:     "someimage@sha256:asdf123",
-							LastPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
+							Ref:                       "someimage@sha256:asdf123",
+							LastSuccessfulPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
 						},
 					},
 				},
@@ -791,13 +786,11 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 							Reason: catalogdv1alpha1.ReasonAvailable,
 						},
 					},
-					ObservedGeneration: 2,
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: "image",
 						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref:             "someimage:latest",
-							ResolvedRef:     "someimage@sha256:asdf123",
-							LastPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
+							Ref:                       "someimage@sha256:asdf123",
+							LastSuccessfulPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
 						},
 					},
 				},
@@ -834,13 +827,11 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 							Reason: catalogdv1alpha1.ReasonAvailable,
 						},
 					},
-					ObservedGeneration: 2,
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: "image",
 						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref:             "someimage:latest",
-							ResolvedRef:     "someimage@sha256:asdf123",
-							LastPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
+							Ref:                       "someimage@sha256:asdf123",
+							LastSuccessfulPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
 						},
 					},
 				},
@@ -877,13 +868,11 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 							Reason: catalogdv1alpha1.ReasonAvailable,
 						},
 					},
-					ObservedGeneration: 2,
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: "image",
 						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref:             "someimage:latest",
-							ResolvedRef:     "someimage@sha256:asdf123",
-							LastPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
+							Ref:                       "someimage@sha256:asdf123",
+							LastSuccessfulPollAttempt: metav1.Time{Time: time.Now().Add(-time.Minute * 5)},
 						},
 					},
 				},

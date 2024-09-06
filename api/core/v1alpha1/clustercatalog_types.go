@@ -91,7 +91,7 @@ type ClusterCatalogSpec struct {
 	// When omitted, the default priority is 0.
 	// +kubebuilder:default:=0
 	// +optional
-	Priority int32 `json:"priority,omitempty"`
+	Priority int32 `json:"priority"`
 }
 
 // ClusterCatalogStatus defines the observed state of ClusterCatalog
@@ -135,11 +135,8 @@ type ClusterCatalogStatus struct {
 	// can read the content of a catalog
 	// +optional
 	ContentURL string `json:"contentURL,omitempty"`
-	// observedGeneration is the most recent generation observed for this ClusterCatalog. It corresponds to the
-	// ClusterCatalog's generation, which is updated on mutation by the API Server.
-	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-	// lastUnpacked represents the time when the
+
+	// LastUnpacked represents the time when the
 	// ClusterCatalog object was last unpacked.
 	// +optional
 	LastUnpacked metav1.Time `json:"lastUnpacked,omitempty"`
@@ -155,7 +152,7 @@ type CatalogSource struct {
 	// When using an image source, the image field must be set and must be the only field defined for this type.
 	//
 	// +unionDiscriminator
-	// +kubebuilder:validation:Enum:="image"
+	// +kubebuilder:validation:Enum:="Image"
 	// +kubebuilder:validation:Required
 	Type SourceType `json:"type"`
 	// image is used to configure how catalog contents are sourced from an OCI image. This field must be set when type is set to "image" and must be the only field defined for this type.
@@ -181,13 +178,11 @@ type ResolvedCatalogSource struct {
 
 // ResolvedImageSource provides information about the resolved source of a Catalog sourced from an image.
 type ResolvedImageSource struct {
-	// ref is the reference to a container image containing Catalog contents.
+	// ref contains the resolved sha256 image ref containing Catalog contents.
 	Ref string `json:"ref"`
-	// resolvedRef is the resolved sha256 image ref containing Catalog contents.
-	ResolvedRef string `json:"resolvedRef"`
-	// lastPollAttempt is the time when the source image was last polled for new content.
-	LastPollAttempt metav1.Time `json:"lastPollAttempt"`
-	// lastUnpacked is the last time when the Catalog contents were successfully unpacked.
+	// lastSuccessfulPollAttempt is the time when the resolved source was last successfully polled for new content.
+	LastSuccessfulPollAttempt metav1.Time `json:"lastSuccessfulPollAttempt"`
+	// LastUnpacked is the time when the catalog contents were successfully unpacked.
 	LastUnpacked metav1.Time `json:"lastUnpacked"`
 }
 

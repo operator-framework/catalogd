@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containers/image/v5/copy"
@@ -162,10 +161,8 @@ func successResult(catalog *catalogdv1alpha1.ClusterCatalog, unpackPath string, 
 		ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 			Type: catalogdv1alpha1.SourceTypeImage,
 			Image: &catalogdv1alpha1.ResolvedImageSource{
-				Ref:             catalog.Spec.Source.Image.Ref,
-				ResolvedRef:     canonicalRef.String(),
-				LastPollAttempt: metav1.Time{Time: time.Now()},
-				LastUnpacked:    lastUnpacked,
+				Ref:          catalog.Spec.Source.Image.Ref,
+				LastUnpacked: lastUnpacked,
 			},
 		},
 		State:   StateUnpacked,

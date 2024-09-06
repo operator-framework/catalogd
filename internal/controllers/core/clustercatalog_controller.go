@@ -165,7 +165,7 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 		}
 
 		updateStatusProgressing(catalog, nil)
-		updateStatusServing(&catalog.Status, unpackResult, contentURL, catalog.Generation, lastUnpacked)
+		updateStatusServing(&catalog.Status, unpackResult, contentURL, lastUnpacked)
 
 		var requeueAfter time.Duration
 		switch catalog.Spec.Source.Type {
@@ -202,10 +202,9 @@ func updateStatusProgressing(catalog *v1alpha1.ClusterCatalog, err error) {
 
 	meta.SetStatusCondition(&catalog.Status.Conditions, progressingCond)
 }
-func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64, unpackedAt metav1.Time) {
+func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, unpackedAt metav1.Time) {
 	status.ResolvedSource = result.ResolvedSource
 	status.ContentURL = contentURL
-	status.ObservedGeneration = generation
 	status.LastUnpacked = unpackedAt
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type:    v1alpha1.TypeServing,
@@ -218,7 +217,6 @@ func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.R
 func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus) {
 	status.ResolvedSource = nil
 	status.ContentURL = ""
-	status.ObservedGeneration = 0
 	status.LastUnpacked = metav1.Time{}
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type:   v1alpha1.TypeServing,
@@ -248,11 +246,6 @@ func (r *ClusterCatalogReconciler) needsUnpacking(catalog *v1alpha1.ClusterCatal
 	}
 	// if pollInterval is nil, don't unpack again
 	if catalog.Spec.Source.Image.PollInterval == nil {
-		return false
-	}
-	// if it's not time to poll yet, and the CR wasn't changed don't unpack again
-	nextPoll := catalog.Status.ResolvedSource.Image.LastPollAttempt.Add(catalog.Spec.Source.Image.PollInterval.Duration)
-	if nextPoll.After(time.Now()) && catalog.Generation == catalog.Status.ObservedGeneration {
 		return false
 	}
 	// time to unpack
