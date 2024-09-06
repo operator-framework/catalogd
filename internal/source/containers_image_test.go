@@ -16,7 +16,7 @@ import (
 	"github.com/go-logr/logr/funcr"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+	catalogdv1 "github.com/operator-framework/catalogd/api/core/v1"
 	"github.com/operator-framework/catalogd/internal/source"
 )
 
@@ -37,7 +37,7 @@ func TestImageRegistry(t *testing.T) {
 		// if the Catalog.Spec.Source.Image.Ref field is empty,
 		// one is injected during test runtime to ensure it
 		// points to the registry created for the test
-		catalog             *v1alpha1.ClusterCatalog
+		catalog             *catalogdv1.ClusterCatalog
 		wantErr             bool
 		terminal            bool
 		image               v1.Image
@@ -49,13 +49,13 @@ func TestImageRegistry(t *testing.T) {
 	}{
 		{
 			name: ".spec.source.image is nil",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type:  v1alpha1.SourceTypeImage,
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type:  catalogdv1.SourceTypeImage,
 						Image: nil,
 					},
 				},
@@ -66,14 +66,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: ".spec.source.image.ref is unparsable",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "::)12-as^&8asd789A(::",
 						},
 					},
@@ -85,14 +85,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "tag based, image is missing required label",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -110,14 +110,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "digest based, image is missing required label",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -136,14 +136,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "image doesn't exist",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -154,14 +154,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "tag based image, digest already exists in cache",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -180,14 +180,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "digest based image, digest already exists in cache",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -206,14 +206,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "old ref is cached",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -240,14 +240,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "tag ref, happy path",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -273,14 +273,14 @@ func TestImageRegistry(t *testing.T) {
 		},
 		{
 			name: "digest ref, happy path",
-			catalog: &v1alpha1.ClusterCatalog{
+			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
 				},
-				Spec: v1alpha1.ClusterCatalogSpec{
-					Source: v1alpha1.CatalogSource{
-						Type: v1alpha1.SourceTypeImage,
-						Image: &v1alpha1.ImageSource{
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
 							Ref: "",
 						},
 					},
@@ -450,14 +450,14 @@ func TestImageRegistryMissingLabelConsistentFailure(t *testing.T) {
 	err = remote.Write(imgName, image)
 	require.NoError(t, err)
 
-	catalog := &v1alpha1.ClusterCatalog{
+	catalog := &catalogdv1.ClusterCatalog{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 		},
-		Spec: v1alpha1.ClusterCatalogSpec{
-			Source: v1alpha1.CatalogSource{
-				Type: v1alpha1.SourceTypeImage,
-				Image: &v1alpha1.ImageSource{
+		Spec: catalogdv1.ClusterCatalogSpec{
+			Source: catalogdv1.CatalogSource{
+				Type: catalogdv1.SourceTypeImage,
+				Image: &catalogdv1.ImageSource{
 					Ref: imgName.Name(),
 				},
 			},

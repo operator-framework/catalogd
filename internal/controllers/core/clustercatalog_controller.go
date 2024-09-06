@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/operator-framework/catalogd/api/core/v1alpha1"
+	catalogdv1 "github.com/operator-framework/catalogd/api/core/v1"
 	"github.com/operator-framework/catalogd/internal/source"
 	"github.com/operator-framework/catalogd/internal/storage"
 )
@@ -68,7 +68,7 @@ func (r *ClusterCatalogReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	l.V(1).Info("reconcile starting")
 	defer l.V(1).Info("reconcile ending")
 
-	existingCatsrc := v1alpha1.ClusterCatalog{}
+	existingCatsrc := catalogdv1.ClusterCatalog{}
 	if err := r.Client.Get(ctx, req.NamespacedName, &existingCatsrc); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -110,7 +110,7 @@ func (r *ClusterCatalogReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterCatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.ClusterCatalog{}).
+		For(&catalogdv1.ClusterCatalog{}).
 		Complete(r)
 }
 
@@ -122,7 +122,7 @@ func (r *ClusterCatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // to add the ctrl.Result type back as a return value. Adding a comment to ignore
 // linting from the linter that was fussing about this.
 // nolint:unparam
-func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.ClusterCatalog) (ctrl.Result, error) {
+func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *catalogdv1.ClusterCatalog) (ctrl.Result, error) {
 	finalizeResult, err := r.Finalizers.Finalize(ctx, catalog)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -169,7 +169,7 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 
 		var requeueAfter time.Duration
 		switch catalog.Spec.Source.Type {
-		case v1alpha1.SourceTypeImage:
+		case catalogdv1.SourceTypeImage:
 			if catalog.Spec.Source.Image != nil && catalog.Spec.Source.Image.PollInterval != nil {
 				requeueAfter = wait.Jitter(catalog.Spec.Source.Image.PollInterval.Duration, requeueJitterMaxFactor)
 			}
@@ -181,53 +181,53 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 	}
 }
 
-func updateStatusProgressing(catalog *v1alpha1.ClusterCatalog, err error) {
+func updateStatusProgressing(catalog *catalogdv1.ClusterCatalog, err error) {
 	progressingCond := metav1.Condition{
-		Type:    v1alpha1.TypeProgressing,
+		Type:    catalogdv1.TypeProgressing,
 		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonSucceeded,
+		Reason:  catalogdv1.ReasonSucceeded,
 		Message: "Successfully unpacked and stored content from resolved source",
 	}
 
 	if err != nil {
 		progressingCond.Status = metav1.ConditionTrue
-		progressingCond.Reason = v1alpha1.ReasonRetrying
+		progressingCond.Reason = catalogdv1.ReasonRetrying
 		progressingCond.Message = err.Error()
 	}
 
 	if errors.Is(err, reconcile.TerminalError(nil)) {
 		progressingCond.Status = metav1.ConditionFalse
-		progressingCond.Reason = v1alpha1.ReasonBlocked
+		progressingCond.Reason = catalogdv1.ReasonBlocked
 	}
 
 	meta.SetStatusCondition(&catalog.Status.Conditions, progressingCond)
 }
-func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64, unpackedAt metav1.Time) {
+func updateStatusServing(status *catalogdv1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64, unpackedAt metav1.Time) {
 	status.ResolvedSource = result.ResolvedSource
 	status.ContentURL = contentURL
 	status.ObservedGeneration = generation
 	status.LastUnpacked = unpackedAt
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeServing,
+		Type:    catalogdv1.TypeServing,
 		Status:  metav1.ConditionTrue,
-		Reason:  v1alpha1.ReasonAvailable,
+		Reason:  catalogdv1.ReasonAvailable,
 		Message: "Serving desired content from resolved source",
 	})
 }
 
-func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus) {
+func updateStatusNotServing(status *catalogdv1.ClusterCatalogStatus) {
 	status.ResolvedSource = nil
 	status.ContentURL = ""
 	status.ObservedGeneration = 0
 	status.LastUnpacked = metav1.Time{}
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:   v1alpha1.TypeServing,
+		Type:   catalogdv1.TypeServing,
 		Status: metav1.ConditionFalse,
-		Reason: v1alpha1.ReasonUnavailable,
+		Reason: catalogdv1.ReasonUnavailable,
 	})
 }
 
-func (r *ClusterCatalogReconciler) needsUnpacking(catalog *v1alpha1.ClusterCatalog) bool {
+func (r *ClusterCatalogReconciler) needsUnpacking(catalog *catalogdv1.ClusterCatalog) bool {
 	// if ResolvedSource is nil, it indicates that this is the first time we're
 	// unpacking this catalog.
 	if catalog.Status.ResolvedSource == nil {
@@ -260,8 +260,8 @@ func (r *ClusterCatalogReconciler) needsUnpacking(catalog *v1alpha1.ClusterCatal
 }
 
 // Compare resources - ignoring status & metadata.finalizers
-func checkForUnexpectedFieldChange(a, b v1alpha1.ClusterCatalog) bool {
-	a.Status, b.Status = v1alpha1.ClusterCatalogStatus{}, v1alpha1.ClusterCatalogStatus{}
+func checkForUnexpectedFieldChange(a, b catalogdv1.ClusterCatalog) bool {
+	a.Status, b.Status = catalogdv1.ClusterCatalogStatus{}, catalogdv1.ClusterCatalogStatus{}
 	a.Finalizers, b.Finalizers = []string{}, []string{}
 	return !equality.Semantic.DeepEqual(a, b)
 }
@@ -275,7 +275,7 @@ func (f finalizerFunc) Finalize(ctx context.Context, obj client.Object) (crfinal
 func NewFinalizers(localStorage storage.Instance, unpacker source.Unpacker) (crfinalizer.Finalizers, error) {
 	f := crfinalizer.NewFinalizers()
 	err := f.Register(fbcDeletionFinalizer, finalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-		catalog, ok := obj.(*v1alpha1.ClusterCatalog)
+		catalog, ok := obj.(*catalogdv1.ClusterCatalog)
 		if !ok {
 			panic("could not convert object to clusterCatalog")
 		}
