@@ -25,6 +25,15 @@ This ends up taking a fraction of the time, sometimes on the order of a few seco
 
 Follow Tilt's [instructions](https://docs.tilt.dev/install.html) for installation.
 
+## Install tilt-support Repo, one level up
+You must install the tilt-support repo one level up from this repo
+
+```bash
+pushd ..
+git clone https://github.com/operator-framework/tilt-support
+popd
+````
+
 ## Starting Tilt
 
 This is typically as short as:
