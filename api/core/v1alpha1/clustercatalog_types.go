@@ -72,17 +72,19 @@ type ClusterCatalogSpec struct {
 	// source is a required field that allows the user to define the source of a Catalog that contains catalog metadata in the File-Based Catalog (FBC) format.
 	//
 	// Below is a minimal example of a ClusterCatalogSpec that sources a catalog from an image:
-	// source:
-	//   type: image
-	//   image: quay.io/operatorhubio/catalog:latest
+	//
+	//  source:
+	//    type: image
+	//    image: quay.io/operatorhubio/catalog:latest
 	//
 	// For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
 	Source CatalogSource `json:"source"`
 
 	// priority is an optional field that allows the user to define a priority for a ClusterCatalog.
-	// A ClusterCatalog's priority is used as the tie-breaker between bundles selected from different catalogs.
+	// A ClusterCatalog's priority is used by clients as a tie-breaker between ClusterCatalogs that meet the client's requirements.
+	// For example, in the case where multiple ClusterCatalogs provide the same bundle.
 	// A higher number means higher priority.
-	// If not specified, the default priority is 0.
+	// When omitted, the default priority is 0.
 	// +kubebuilder:default:=0
 	// +optional
 	Priority int32 `json:"priority,omitempty"`
@@ -116,13 +118,13 @@ type ClusterCatalogStatus struct {
 	//
 	// Below is an example of a resolved source for an image source:
 	// resolvedSource:
-	//   image:
-	//     lastPollAttempt: "2024-09-10T12:22:13Z"
-	//     lastUnpacked: "2024-09-10T12:22:13Z"
-	//     ref: quay.io/operatorhubio/catalog:latest
-	//    resolvedRef: quay.io/operatorhubio/catalog@sha256:c7392b4be033da629f9d665fec30f6901de51ce3adebeff0af579f311ee5cf1b
-	//   type: image
 	//
+	//  image:
+	//    lastPollAttempt: "2024-09-10T12:22:13Z"
+	//    lastUnpacked: "2024-09-10T12:22:13Z"
+	//    ref: quay.io/operatorhubio/catalog:latest
+	//    resolvedRef: quay.io/operatorhubio/catalog@sha256:c7392b4be033da629f9d665fec30f6901de51ce3adebeff0af579f311ee5cf1b
+	//  type: image
 	// +optional
 	ResolvedSource *ResolvedCatalogSource `json:"resolvedSource,omitempty"`
 	// contentURL is a cluster-internal URL from which on-cluster components
@@ -141,9 +143,13 @@ type ClusterCatalogStatus struct {
 
 // CatalogSource is a discriminated union of possible sources for a Catalog.
 type CatalogSource struct {
-	// type  is the unions discriminator.
-	// Users are expected to set this value to the type of source the catalog is sourced from.
-	// It must be set to one of the following values: image.
+	// type is a required reference to the type of source the catalog is sourced from.
+	//
+	// Allowed values are ["image"]
+	//
+	// When this field is set to "image", the ClusterCatalog content will be sourced from an OCI image.
+	// When using an image source, the Image field must be set and must be the only field defined for this type.
+	//
 	// +unionDiscriminator
 	// +kubebuilder:validation:Enum:="image"
 	// +kubebuilder:validation:Required
@@ -155,21 +161,25 @@ type CatalogSource struct {
 
 // ResolvedCatalogSource is a discriminated union of resolution information for a Catalog.
 type ResolvedCatalogSource struct {
-	// type is the union discriminator.
-	// This value will be set to one of the following: image.
+	// type is a reference to the type of source the catalog is sourced from.
+	//
+	// It will be set to one of the following values: ["image"].
+	//
+	// When this field is set to "image", information about the resolved image source will be set in the 'image' field.
+	//
 	// +unionDiscriminator
 	// +kubebuilder:validation:Enum:="image"
 	// +kubebuilder:validation:Required
 	Type SourceType `json:"type"`
-	// image is resolution information for a catalog sourced from an image.
+	// image is a field containing resolution information for a catalog sourced from an image.
 	Image *ResolvedImageSource `json:"image"`
 }
 
 // ResolvedImageSource provides information about the resolved source of a Catalog sourced from an image.
 type ResolvedImageSource struct {
-	// ref contains the reference to a container image containing Catalog contents.
+	// ref is the reference to a container image containing Catalog contents.
 	Ref string `json:"ref"`
-	// resolvedRef contains the resolved sha256 image ref containing Catalog contents.
+	// resolvedRef is the resolved sha256 image ref containing Catalog contents.
 	ResolvedRef string `json:"resolvedRef"`
 	// lastPollAttempt is the time when the source image was last polled for new content.
 	LastPollAttempt metav1.Time `json:"lastPollAttempt"`
@@ -179,14 +189,20 @@ type ResolvedImageSource struct {
 
 // ImageSource enables users to define the information required for sourcing a Catalog from an OCI image
 type ImageSource struct {
-	// ref contains the reference to a container image containing Catalog contents.
+	// ref is a required field that allows the user to define the reference to a container image containing Catalog contents.
 	// Examples:
 	//   ref: quay.io/operatorhubio/catalog:latest # image reference
 	//   ref: quay.io/operatorhubio/catalog@sha256:c7392b4be033da629f9d665fec30f6901de51ce3adebeff0af579f311ee5cf1b # image reference with sha256 digest
 	Ref string `json:"ref"`
-	// pollInterval indicates the interval at which the image source should be polled for new content,
-	// specified as a duration (e.g., "5m", "1h", "24h", "etc".). Note that PollInterval may not be
-	// specified for a catalog image referenced by a sha256 digest.
+	// pollInterval is an optional field that allows the user to set the interval at which the image source should be polled for new content.
+	// It must be specified as a duration.
+	// It must not be specified for a catalog image referenced by a sha256 digest.
+	// Examples:
+	//   pollInterval: 1h # poll the image source every hour
+	//   pollInterval: 30m # poll the image source every 30 minutes
+	//   pollInterval: 1h30m # poll the image source every 1 hour and 30 minutes
+	//
+	// When omitted, the image will not be polled for new content.
 	// +kubebuilder:validation:Format:=duration
 	// +optional
 	PollInterval *metav1.Duration `json:"pollInterval,omitempty"`
