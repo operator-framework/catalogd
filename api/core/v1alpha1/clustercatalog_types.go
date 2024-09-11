@@ -69,7 +69,7 @@ type ClusterCatalogList struct {
 // ClusterCatalogSpec defines the desired state of ClusterCatalog
 // +kubebuilder:validation:XValidation:rule="!has(self.source.image.pollInterval) || (self.source.image.ref.find('@sha256:') == \"\")",message="cannot specify PollInterval while using digest-based image"
 type ClusterCatalogSpec struct {
-	// source allows the user to define the source of a Catalog that contains catalog metadata in the File-Based Catalog (FBC) format.
+	// source is a required field that allows the user to define the source of a Catalog that contains catalog metadata in the File-Based Catalog (FBC) format.
 	//
 	// Below is a minimal example of a ClusterCatalogSpec that sources a catalog from an image:
 	// source:
@@ -79,7 +79,7 @@ type ClusterCatalogSpec struct {
 	// For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
 	Source CatalogSource `json:"source"`
 
-	// priority allows the user to define a priority for a ClusterCatalog.
+	// priority is an optional field that allows the user to define a priority for a ClusterCatalog.
 	// A ClusterCatalog's priority is used as the tie-breaker between bundles selected from different catalogs.
 	// A higher number means higher priority.
 	// If not specified, the default priority is 0.
@@ -112,7 +112,7 @@ type ClusterCatalogStatus struct {
 	//
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
-	// resolvedSource contains information about the resolved source based the source type.
+	// resolvedSource contains information about the resolved source based on the source type.
 	//
 	// Below is an example of a resolved source for an image source:
 	// resolvedSource:
@@ -148,7 +148,7 @@ type CatalogSource struct {
 	// +kubebuilder:validation:Enum:="image"
 	// +kubebuilder:validation:Required
 	Type SourceType `json:"type"`
-	// image is the source of the catalog image.
+	// image is used to configure how catalog contents are sourced from an OCI image. This field must be set when type is set to "image" and must be the only field defined for this type.
 	// +optional
 	Image *ImageSource `json:"image,omitempty"`
 }
@@ -173,7 +173,7 @@ type ResolvedImageSource struct {
 	ResolvedRef string `json:"resolvedRef"`
 	// lastPollAttempt is the time when the source image was last polled for new content.
 	LastPollAttempt metav1.Time `json:"lastPollAttempt"`
-	// LastUnpacked is the time when the Catalog contents were successfully unpacked.
+	// LastUnpacked is the last time when the Catalog contents were successfully unpacked.
 	LastUnpacked metav1.Time `json:"lastUnpacked"`
 }
 
