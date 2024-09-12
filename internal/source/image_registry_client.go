@@ -63,7 +63,6 @@ func (i *ImageRegistry) Unpack(ctx context.Context, catalog *catalogdv1alpha1.Cl
 	if i.CertPool != nil {
 		tlsTransport.TLSClientConfig.RootCAs = i.CertPool
 	}
-	remoteOpts = append(remoteOpts, remote.WithTransport(tlsTransport))
 
 	if catalog.Spec.Source.Image.PullSecret != "" {
 		chainOpts := k8schain.Options{
@@ -89,6 +88,8 @@ func (i *ImageRegistry) Unpack(ctx context.Context, catalog *catalogdv1alpha1.Cl
 		}
 		insecureTransport.TLSClientConfig.InsecureSkipVerify = true // nolint:gosec
 		remoteOpts = append(remoteOpts, remote.WithTransport(insecureTransport))
+	} else {
+		remoteOpts = append(remoteOpts, remote.WithTransport(tlsTransport))
 	}
 
 	digest, isDigest := imgRef.(name.Digest)

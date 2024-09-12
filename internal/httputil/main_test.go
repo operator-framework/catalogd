@@ -1,4 +1,4 @@
-package main
+package httputil
 
 import (
 	"crypto/rand"
@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_newCertPool(t *testing.T) {
+func TestNewCertPool(t *testing.T) {
 	t.Parallel()
 
 	// set up our CA certificate
@@ -60,7 +60,7 @@ func Test_newCertPool(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = newCertPool("testdata/newCertPool", testr.New(t))
+	_, err = NewCertPool("testdata/newCertPool", testr.New(t))
 	require.NoError(t, err)
 }
 
@@ -68,6 +68,6 @@ func Test_newCertPool_empty(t *testing.T) {
 	err := os.MkdirAll("testdata/newCertPoolEmpty", 0700)
 	require.NoError(t, err)
 
-	_, err = newCertPool("testdata/newCertPoolEmpty", testr.New(t))
+	_, err = NewCertPool("testdata/newCertPoolEmpty", testr.New(t))
 	require.EqualError(t, err, `no certificates found in "testdata/newCertPoolEmpty"`)
 }
