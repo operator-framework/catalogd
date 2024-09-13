@@ -21,6 +21,9 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	catalogdv1alpha1 "github.com/operator-framework/catalogd/api/core/v1alpha1"
+	catalogderrors "github.com/operator-framework/catalogd/internal/errors"
 )
 
 type ContainersImageRegistry struct {
@@ -28,15 +31,15 @@ type ContainersImageRegistry struct {
 	SourceContext *types.SystemContext
 }
 
-func (i *ContainersImageRegistry) Unpack(ctx context.Context, bundle *BundleSource) (*Result, error) {
+func (i *ContainersImageRegistry) Unpack(ctx context.Context, catalog *catalogdv1alpha1.ClusterCatalog) (*Result, error) {
 	l := log.FromContext(ctx)
 
-	if bundle.Type != SourceTypeImage {
-		panic(fmt.Sprintf("programmer error: source type %q is unable to handle specified bundle source type %q", SourceTypeImage, bundle.Type))
+	if catalog.Spec.Source.Type != catalogdv1alpha1.SourceTypeImage {
+		panic(fmt.Sprintf("programmer error: source type %q is unable to handle specified catalog source type %q", catalogdv1alpha1.SourceTypeImage, catalog.Spec.Source.Type))
 	}
 
-	if bundle.Image == nil {
-		return nil, NewUnrecoverable(fmt.Errorf("error parsing bundle, bundle %s has a nil image source", bundle.Name))
+	if catalog.Spec.Source.Image == nil {
+		return nil, catalogderrors.NewUnrecoverable(fmt.Errorf("error parsing catalog, catalog %s has a nil image source", catalog.Name))
 	}
 
 	//////////////////////////////////////////////////////
@@ -44,9 +47,9 @@ func (i *ContainersImageRegistry) Unpack(ctx context.Context, bundle *BundleSour
 	// Resolve a canonical reference for the image.
 	//
 	//////////////////////////////////////////////////////
-	imgRef, err := reference.ParseNamed(bundle.Image.Ref)
+	imgRef, err := reference.ParseNamed(catalog.Spec.Source.Image.Ref)
 	if err != nil {
-		return nil, NewUnrecoverable(fmt.Errorf("error parsing image reference %q: %w", bundle.Image.Ref, err))
+		return nil, catalogderrors.NewUnrecoverable(fmt.Errorf("error parsing image reference %q: %w", catalog.Spec.Source.Image.Ref, err))
 	}
 
 	canonicalRef, err := resolveCanonicalRef(ctx, imgRef, i.SourceContext)
@@ -60,13 +63,13 @@ func (i *ContainersImageRegistry) Unpack(ctx context.Context, bundle *BundleSour
 	// return the unpacked directory.
 	//
 	//////////////////////////////////////////////////////
-	unpackPath := i.unpackPath(bundle.Name, canonicalRef.Digest())
+	unpackPath := i.unpackPath(catalog.Name, canonicalRef.Digest())
 	if unpackStat, err := os.Stat(unpackPath); err == nil {
 		if !unpackStat.IsDir() {
 			return nil, fmt.Errorf("unexpected file at unpack path %q: expected a directory", unpackPath)
 		}
 		l.Info("image already unpacked", "ref", imgRef.String(), "digest", canonicalRef.Digest().String())
-		return successResult(bundle.Name, unpackPath, canonicalRef), nil
+		return successResult(catalog.Name, unpackPath, canonicalRef), nil
 	}
 
 	//////////////////////////////////////////////////////
@@ -84,7 +87,7 @@ func (i *ContainersImageRegistry) Unpack(ctx context.Context, bundle *BundleSour
 		return nil, fmt.Errorf("error creating source reference: %w", err)
 	}
 
-	layoutDir, err := os.MkdirTemp("", fmt.Sprintf("oci-layout-%s", bundle.Name))
+	layoutDir, err := os.MkdirTemp("", fmt.Sprintf("oci-layout-%s", catalog.Name))
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
@@ -145,32 +148,37 @@ func (i *ContainersImageRegistry) Unpack(ctx context.Context, bundle *BundleSour
 	// Delete other images. They are no longer needed.
 	//
 	//////////////////////////////////////////////////////
-	if err := i.deleteOtherImages(bundle.Name, canonicalRef.Digest()); err != nil {
+	if err := i.deleteOtherImages(catalog.Name, canonicalRef.Digest()); err != nil {
 		return nil, fmt.Errorf("error deleting old images: %w", err)
 	}
 
-	return successResult(bundle.Name, unpackPath, canonicalRef), nil
+	return successResult(catalog.Name, unpackPath, canonicalRef), nil
 }
 
-func successResult(bundleName, unpackPath string, canonicalRef reference.Canonical) *Result {
+func successResult(catalogName string, unpackPath string, canonicalRef reference.Canonical) *Result {
 	return &Result{
-		Bundle:         os.DirFS(unpackPath),
-		ResolvedSource: &BundleSource{Type: SourceTypeImage, Name: bundleName, Image: &ImageSource{Ref: canonicalRef.String()}},
-		State:          StateUnpacked,
-		Message:        fmt.Sprintf("unpacked %q successfully", canonicalRef),
+		FS: os.DirFS(unpackPath),
+		ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
+			Type: catalogdv1alpha1.SourceTypeImage,
+			Image: &catalogdv1alpha1.ResolvedImageSource{
+				ResolvedRef: canonicalRef.String(),
+			},
+		},
+		State:   StateUnpacked,
+		Message: fmt.Sprintf("unpacked %q successfully", canonicalRef),
 	}
 }
 
-func (i *ContainersImageRegistry) Cleanup(_ context.Context, bundle *BundleSource) error {
-	return os.RemoveAll(i.bundlePath(bundle.Name))
+func (i *ContainersImageRegistry) Cleanup(_ context.Context, catalog *catalogdv1alpha1.ClusterCatalog) error {
+	return os.RemoveAll(i.catalogPath(catalog.Name))
 }
 
-func (i *ContainersImageRegistry) bundlePath(bundleName string) string {
-	return filepath.Join(i.BaseCachePath, bundleName)
+func (i *ContainersImageRegistry) catalogPath(catalogName string) string {
+	return filepath.Join(i.BaseCachePath, catalogName)
 }
 
-func (i *ContainersImageRegistry) unpackPath(bundleName string, digest digest.Digest) string {
-	return filepath.Join(i.bundlePath(bundleName), digest.String())
+func (i *ContainersImageRegistry) unpackPath(catalogName string, digest digest.Digest) string {
+	return filepath.Join(i.catalogPath(catalogName), digest.String())
 }
 
 func resolveCanonicalRef(ctx context.Context, imgRef reference.Named, imageCtx *types.SystemContext) (reference.Canonical, error) {
@@ -180,7 +188,7 @@ func resolveCanonicalRef(ctx context.Context, imgRef reference.Named, imageCtx *
 
 	srcRef, err := docker.NewReference(imgRef)
 	if err != nil {
-		return nil, NewUnrecoverable(fmt.Errorf("error creating reference: %w", err))
+		return nil, catalogderrors.NewUnrecoverable(fmt.Errorf("error creating reference: %w", err))
 	}
 
 	imgSrc, err := srcRef.NewImageSource(ctx, imageCtx)
@@ -257,9 +265,9 @@ func applyLayer(ctx context.Context, unpackPath string, layer io.ReadCloser) err
 	return err
 }
 
-func (i *ContainersImageRegistry) deleteOtherImages(bundleName string, digestToKeep digest.Digest) error {
-	bundlePath := i.bundlePath(bundleName)
-	imgDirs, err := os.ReadDir(bundlePath)
+func (i *ContainersImageRegistry) deleteOtherImages(catalogName string, digestToKeep digest.Digest) error {
+	catalogPath := i.catalogPath(catalogName)
+	imgDirs, err := os.ReadDir(catalogPath)
 	if err != nil {
 		return fmt.Errorf("error reading image directories: %w", err)
 	}
@@ -267,7 +275,7 @@ func (i *ContainersImageRegistry) deleteOtherImages(bundleName string, digestToK
 		if imgDir.Name() == digestToKeep.String() {
 			continue
 		}
-		imgDirPath := filepath.Join(bundlePath, imgDir.Name())
+		imgDirPath := filepath.Join(catalogPath, imgDir.Name())
 		if err := os.RemoveAll(imgDirPath); err != nil {
 			return fmt.Errorf("error removing image directory: %w", err)
 		}
