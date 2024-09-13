@@ -148,7 +148,7 @@ type CatalogSource struct {
 	// Allowed values are ["image"]
 	//
 	// When this field is set to "image", the ClusterCatalog content will be sourced from an OCI image.
-	// When using an image source, the Image field must be set and must be the only field defined for this type.
+	// When using an image source, the image field must be set and must be the only field defined for this type.
 	//
 	// +unionDiscriminator
 	// +kubebuilder:validation:Enum:="image"
