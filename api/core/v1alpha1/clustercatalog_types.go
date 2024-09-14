@@ -75,7 +75,8 @@ type ClusterCatalogSpec struct {
 	//
 	//  source:
 	//    type: image
-	//    image: quay.io/operatorhubio/catalog:latest
+	//    image:
+	//      ref: quay.io/operatorhubio/catalog:latest
 	//
 	// For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
 	Source CatalogSource `json:"source"`
@@ -83,7 +84,7 @@ type ClusterCatalogSpec struct {
 	// priority is an optional field that allows the user to define a priority for a ClusterCatalog.
 	// A ClusterCatalog's priority is used by clients as a tie-breaker between ClusterCatalogs that meet the client's requirements.
 	// For example, in the case where multiple ClusterCatalogs provide the same bundle.
-	// A higher number means higher priority.
+	// A higher number means higher priority. Negative number as also accepted.
 	// When omitted, the default priority is 0.
 	// +kubebuilder:default:=0
 	// +optional
@@ -135,7 +136,7 @@ type ClusterCatalogStatus struct {
 	// ClusterCatalog's generation, which is updated on mutation by the API Server.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-	// LastUnpacked represents the time when the
+	// lastUnpacked represents the time when the
 	// ClusterCatalog object was last unpacked.
 	// +optional
 	LastUnpacked metav1.Time `json:"lastUnpacked,omitempty"`
@@ -183,7 +184,7 @@ type ResolvedImageSource struct {
 	ResolvedRef string `json:"resolvedRef"`
 	// lastPollAttempt is the time when the source image was last polled for new content.
 	LastPollAttempt metav1.Time `json:"lastPollAttempt"`
-	// LastUnpacked is the last time when the Catalog contents were successfully unpacked.
+	// lastUnpacked is the last time when the Catalog contents were successfully unpacked.
 	LastUnpacked metav1.Time `json:"lastUnpacked"`
 }
 
