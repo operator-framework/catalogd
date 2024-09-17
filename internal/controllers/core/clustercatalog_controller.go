@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/operator-framework/catalogd/api/core/v1alpha1"
 	"github.com/operator-framework/catalogd/internal/source"
@@ -145,16 +146,12 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 
 	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
 	if err != nil {
-		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("source bundle content: %v", err))
+		unpackErr := fmt.Errorf("source bundle content: %w", err)
+		updateStatusProgressing(catalog, unpackErr)
+		return ctrl.Result{}, unpackErr
 	}
 
 	switch unpackResult.State {
-	case source.StatePending:
-		updateStatusUnpackPending(&catalog.Status, unpackResult)
-		return ctrl.Result{}, nil
-	case source.StateUnpacking:
-		updateStatusUnpacking(&catalog.Status, unpackResult)
-		return ctrl.Result{}, nil
 	case source.StateUnpacked:
 		contentURL := ""
 		// TODO: We should check to see if the unpacked result has the same content
@@ -162,7 +159,9 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 		//   of the unpacking steps.
 		err := r.Storage.Store(ctx, catalog.Name, unpackResult.FS)
 		if err != nil {
-			return ctrl.Result{}, updateStatusStorageError(&catalog.Status, fmt.Errorf("error storing fbc: %v", err))
+			storageErr := fmt.Errorf("error storing fbc: %v", err)
+			updateStatusProgressing(catalog, storageErr)
+			return ctrl.Result{}, storageErr
 		}
 		contentURL = r.Storage.ContentURL(catalog.Name)
 
@@ -170,11 +169,10 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 
 		if unpackResult != nil && unpackResult.ResolvedSource != nil && unpackResult.ResolvedSource.Image != nil {
 			lastUnpacked = unpackResult.ResolvedSource.Image.LastUnpacked
-		} else {
-			lastUnpacked = metav1.Time{}
 		}
 
-		updateStatusUnpacked(&catalog.Status, unpackResult, contentURL, catalog.Generation, lastUnpacked)
+		updateStatusProgressing(catalog, nil)
+		updateStatusServing(&catalog.Status, unpackResult, contentURL, catalog.Generation, lastUnpacked)
 
 		var requeueAfter time.Duration
 		switch catalog.Spec.Source.Type {
@@ -186,73 +184,54 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 
 		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	default:
-		return ctrl.Result{}, updateStatusUnpackFailing(&catalog.Status, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
+		panic(fmt.Sprintf("unknown unpack state %q", unpackResult.State))
 	}
 }
 
-func updateStatusUnpackPending(status *v1alpha1.ClusterCatalogStatus, result *source.Result) {
-	status.ResolvedSource = nil
-	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeUnpacked,
+func updateStatusProgressing(catalog *v1alpha1.ClusterCatalog, err error) {
+	progressingCond := metav1.Condition{
+		Type:    v1alpha1.TypeProgressing,
 		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonUnpackPending,
-		Message: result.Message,
-	})
-}
+		Reason:  v1alpha1.ReasonSucceeded,
+		Message: "Successfully unpacked and stored content from resolved source",
+	}
 
-func updateStatusUnpacking(status *v1alpha1.ClusterCatalogStatus, result *source.Result) {
-	status.ResolvedSource = nil
-	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeUnpacked,
-		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonUnpacking,
-		Message: result.Message,
-	})
-}
+	if err != nil {
+		progressingCond.Status = metav1.ConditionTrue
+		progressingCond.Reason = v1alpha1.ReasonRetrying
+		progressingCond.Message = err.Error()
+	}
 
-func updateStatusUnpacked(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64, lastUnpacked metav1.Time) {
+	if errors.Is(err, reconcile.TerminalError(nil)) {
+		progressingCond.Status = metav1.ConditionFalse
+		progressingCond.Reason = v1alpha1.ReasonTerminal
+	}
+
+	meta.SetStatusCondition(&catalog.Status.Conditions, progressingCond)
+}
+func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64, unpackedAt metav1.Time) {
 	status.ResolvedSource = result.ResolvedSource
 	status.ContentURL = contentURL
 	status.ObservedGeneration = generation
-	status.LastUnpacked = lastUnpacked
+	status.LastUnpacked = unpackedAt
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeUnpacked,
+		Type:    v1alpha1.TypeServing,
 		Status:  metav1.ConditionTrue,
-		Reason:  v1alpha1.ReasonUnpackSuccessful,
-		Message: result.Message,
+		Reason:  v1alpha1.ReasonAvailable,
+		Message: "Serving desired content from resolved source",
 	})
 }
 
-func updateStatusUnpackFailing(status *v1alpha1.ClusterCatalogStatus, err error) error {
+func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus) {
 	status.ResolvedSource = nil
+	status.ContentURL = ""
+	status.ObservedGeneration = 0
+	status.LastUnpacked = metav1.Time{}
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeUnpacked,
-		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonUnpackFailed,
-		Message: err.Error(),
+		Type:   v1alpha1.TypeServing,
+		Status: metav1.ConditionFalse,
+		Reason: v1alpha1.ReasonUnavailable,
 	})
-	return err
-}
-
-func updateStatusStorageError(status *v1alpha1.ClusterCatalogStatus, err error) error {
-	status.ResolvedSource = nil
-	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeUnpacked,
-		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonStorageFailed,
-		Message: fmt.Sprintf("failed to store bundle: %s", err.Error()),
-	})
-	return err
-}
-
-func updateStatusStorageDeleteError(status *v1alpha1.ClusterCatalogStatus, err error) error {
-	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeDelete,
-		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonStorageDeleteFailed,
-		Message: fmt.Sprintf("failed to delete storage: %s", err.Error()),
-	})
-	return err
 }
 
 func (r *ClusterCatalogReconciler) needsUnpacking(catalog *v1alpha1.ClusterCatalog) bool {
