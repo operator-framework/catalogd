@@ -281,14 +281,14 @@ func NewFinalizers(localStorage storage.Instance, unpacker source.Unpacker) (crf
 		}
 		if err := localStorage.Delete(catalog.Name); err != nil {
 			updateStatusProgressing(catalog, err)
-			return crfinalizer.Result{}, err
+			return crfinalizer.Result{StatusUpdated: true}, err
 		}
 		updateStatusNotServing(&catalog.Status)
 		if err := unpacker.Cleanup(ctx, catalog); err != nil {
 			updateStatusProgressing(catalog, err)
-			return crfinalizer.Result{}, err
+			return crfinalizer.Result{StatusUpdated: true}, err
 		}
-		return crfinalizer.Result{}, nil
+		return crfinalizer.Result{StatusUpdated: true}, nil
 	}))
 	if err != nil {
 		return f, err
