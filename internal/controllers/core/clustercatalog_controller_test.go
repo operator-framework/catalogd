@@ -450,7 +450,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 		},
 		{
 			name:          "storage finalizer set, catalog deletion timestamp is not zero (or nil), storage delete failed, error returned, finalizer not removed and catalog continues serving",
-			expectedError: fmt.Errorf("mockstore delete error"),
+			expectedError: fmt.Errorf("finalizer %q failed: %w", fbcDeletionFinalizer, fmt.Errorf("mockstore delete error")),
 			source: &MockSource{
 				result: &source.Result{
 					State: source.StateUnpacked,
@@ -523,7 +523,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 		},
 		{
 			name:          "storage finalizer set, catalog deletion timestamp is not zero (or nil), unpack cleanup failed, error returned, finalizer not removed but catalog stops serving",
-			expectedError: fmt.Errorf("mocksource cleanup error"),
+			expectedError: fmt.Errorf("finalizer %q failed: %w", fbcDeletionFinalizer, fmt.Errorf("mocksource cleanup error")),
 			source: &MockSource{
 				unpackError:  nil,
 				cleanupError: fmt.Errorf("mocksource cleanup error"),
@@ -587,11 +587,6 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 							Status: metav1.ConditionFalse,
 							Reason: catalogdv1alpha1.ReasonUnavailable,
 						},
-						{
-							Type:   catalogdv1alpha1.TypeUnpacked,
-							Status: metav1.ConditionFalse,
-							Reason: catalogdv1alpha1.ReasonUnpackFailed,
-						},
 					},
 				},
 			},
@@ -617,7 +612,13 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 
 			res, err := reconciler.reconcile(ctx, tt.catalog)
 			assert.Equal(t, ctrl.Result{}, res)
-			assert.Equal(t, tt.expectedError, err)
+			// errors are aggregated/wrapped
+			if tt.expectedError == nil {
+				assert.Nil(t, err)
+			} else {
+				assert.NotNil(t, err)
+				assert.Equal(t, tt.expectedError.Error(), err.Error())
+			}
 			diff := cmp.Diff(tt.expectedCatalog, tt.catalog,
 				cmpopts.IgnoreFields(metav1.Condition{}, "Message", "LastTransitionTime"),
 				cmpopts.SortSlices(func(a, b metav1.Condition) bool { return a.Type < b.Type }))

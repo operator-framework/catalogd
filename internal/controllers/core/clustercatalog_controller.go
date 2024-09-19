@@ -125,13 +125,6 @@ func (r *ClusterCatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.ClusterCatalog) (ctrl.Result, error) {
 	finalizeResult, err := r.Finalizers.Finalize(ctx, catalog)
 	if err != nil {
-		// TODO: For now, this error handling follows the pattern of other error handling.
-		//  Namely: zero just about everything out, throw our hands up, and return an error.
-		//  This is not ideal, and we should consider a more nuanced approach that resolves
-		//  as much status as possible before returning, or at least keeps previous state if
-		//  it is properly labeled with its observed generation.
-		_ = updateStatusStorageError(&catalog.Status, err)
-		_ = updateStatusUnpackFailing(&catalog.Status, err)
 		return ctrl.Result{}, err
 	}
 	if finalizeResult.Updated || finalizeResult.StatusUpdated {
@@ -287,10 +280,13 @@ func NewFinalizers(localStorage storage.Instance, unpacker source.Unpacker) (crf
 			panic("could not convert object to clusterCatalog")
 		}
 		if err := localStorage.Delete(catalog.Name); err != nil {
-			return crfinalizer.Result{}, updateStatusStorageDeleteError(&catalog.Status, err)
+			updateStatusProgressing(catalog, err)
+			return crfinalizer.Result{}, err
 		}
+		updateStatusNotServing(&catalog.Status)
 		if err := unpacker.Cleanup(ctx, catalog); err != nil {
-			return crfinalizer.Result{}, updateStatusStorageDeleteError(&catalog.Status, err)
+			updateStatusProgressing(catalog, err)
+			return crfinalizer.Result{}, err
 		}
 		return crfinalizer.Result{}, nil
 	}))

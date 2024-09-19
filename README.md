@@ -70,7 +70,7 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
         Reason:                Available
         Status:                True
         Type:                  Serving
-      Content URL:             https://catalogd-catalogserver.olmv1-system.svc/catalogs/operatorhubio/all.json
+      Content URL:             https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/all.json
       Last Unpacked:           2024-09-12T13:37:52Z
       Observed Generation:     1
       Resolved Source:
