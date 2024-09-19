@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	FbcDeletionFinalizer = "olm.operatorframework.io/delete-server-cache"
+	fbcDeletionFinalizer = "olm.operatorframework.io/delete-server-cache"
 	// CatalogSources are polled if PollInterval is mentioned, in intervals of wait.Jitter(pollDuration, maxFactor)
 	// wait.Jitter returns a time.Duration between pollDuration and pollDuration + maxFactor * pollDuration.
 	requeueJitterMaxFactor = 0.01
@@ -302,7 +302,7 @@ func (f finalizerFunc) Finalize(ctx context.Context, obj client.Object) (crfinal
 
 func NewFinalizers(localStorage storage.Instance, unpacker source.Unpacker) (crfinalizer.Finalizers, error) {
 	f := crfinalizer.NewFinalizers()
-	err := f.Register(FbcDeletionFinalizer, finalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
+	err := f.Register(fbcDeletionFinalizer, finalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
 		catalog, ok := obj.(*v1alpha1.ClusterCatalog)
 		if !ok {
 			panic("could not convert object to clusterCatalog")

@@ -96,7 +96,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -108,7 +108,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -135,7 +135,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -149,7 +149,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -179,7 +179,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -193,7 +193,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -224,7 +224,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -238,7 +238,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -269,7 +269,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -283,7 +283,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -316,7 +316,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -330,7 +330,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -367,7 +367,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -381,7 +381,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -427,7 +427,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -451,7 +451,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "catalog",
-					Finalizers:        []string{FbcDeletionFinalizer},
+					Finalizers:        []string{fbcDeletionFinalizer},
 					DeletionTimestamp: &metav1.Time{Time: time.Date(2023, time.October, 10, 4, 19, 0, 0, time.UTC)},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
@@ -494,7 +494,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "catalog",
-					Finalizers:        []string{FbcDeletionFinalizer},
+					Finalizers:        []string{fbcDeletionFinalizer},
 					DeletionTimestamp: &metav1.Time{Time: time.Date(2023, time.October, 10, 4, 19, 0, 0, time.UTC)},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
@@ -509,7 +509,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "catalog",
-					Finalizers:        []string{FbcDeletionFinalizer},
+					Finalizers:        []string{fbcDeletionFinalizer},
 					DeletionTimestamp: &metav1.Time{Time: time.Date(2023, time.October, 10, 4, 19, 0, 0, time.UTC)},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
@@ -578,7 +578,7 @@ func TestPollingRequeue(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -595,7 +595,7 @@ func TestPollingRequeue(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -642,7 +642,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
 					Source: catalogdv1alpha1.CatalogSource{
@@ -660,7 +660,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 					Generation: 2,
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
@@ -697,7 +697,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 					Generation: 2,
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
@@ -735,7 +735,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 					Generation: 2,
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
@@ -773,7 +773,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
-					Finalizers: []string{FbcDeletionFinalizer},
+					Finalizers: []string{fbcDeletionFinalizer},
 					Generation: 3,
 				},
 				Spec: catalogdv1alpha1.ClusterCatalogSpec{
