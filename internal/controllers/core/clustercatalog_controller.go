@@ -129,8 +129,8 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 		//  This is not ideal, and we should consider a more nuanced approach that resolves
 		//  as much status as possible before returning, or at least keeps previous state if
 		//  it is properly labeled with its observed generation.
-		updateStatusStorageError(&catalog.Status, err)
-		updateStatusUnpackFailing(&catalog.Status, err)
+		_ = updateStatusStorageError(&catalog.Status, err)
+		_ = updateStatusUnpackFailing(&catalog.Status, err)
 		return ctrl.Result{}, err
 	}
 	if finalizeResult.Updated || finalizeResult.StatusUpdated {
@@ -245,7 +245,7 @@ func updateStatusStorageError(status *v1alpha1.ClusterCatalogStatus, err error) 
 	return err
 }
 
-func UpdateStatusStorageDeleteError(status *v1alpha1.ClusterCatalogStatus, err error) error {
+func updateStatusStorageDeleteError(status *v1alpha1.ClusterCatalogStatus, err error) error {
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type:    v1alpha1.TypeDelete,
 		Status:  metav1.ConditionFalse,
@@ -292,4 +292,31 @@ func checkForUnexpectedFieldChange(a, b v1alpha1.ClusterCatalog) bool {
 	a.Status, b.Status = v1alpha1.ClusterCatalogStatus{}, v1alpha1.ClusterCatalogStatus{}
 	a.Finalizers, b.Finalizers = []string{}, []string{}
 	return !equality.Semantic.DeepEqual(a, b)
+}
+
+type finalizerFunc func(ctx context.Context, obj client.Object) (crfinalizer.Result, error)
+
+func (f finalizerFunc) Finalize(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
+	return f(ctx, obj)
+}
+
+func NewFinalizers(localStorage storage.Instance, unpacker source.Unpacker) (crfinalizer.Finalizers, error) {
+	f := crfinalizer.NewFinalizers()
+	err := f.Register(FbcDeletionFinalizer, finalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
+		catalog, ok := obj.(*v1alpha1.ClusterCatalog)
+		if !ok {
+			panic("could not convert object to clusterCatalog")
+		}
+		if err := localStorage.Delete(catalog.Name); err != nil {
+			return crfinalizer.Result{}, updateStatusStorageDeleteError(&catalog.Status, err)
+		}
+		if err := unpacker.Cleanup(ctx, catalog); err != nil {
+			return crfinalizer.Result{}, updateStatusStorageDeleteError(&catalog.Status, err)
+		}
+		return crfinalizer.Result{}, nil
+	}))
+	if err != nil {
+		return f, err
+	}
+	return f, nil
 }

@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -36,8 +35,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -225,21 +222,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	clusterCatalogFinalizers := crfinalizer.NewFinalizers()
-	if err := clusterCatalogFinalizers.Register(corecontrollers.FbcDeletionFinalizer, finalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-		catalog, ok := obj.(*v1alpha1.ClusterCatalog)
-		if !ok {
-			panic("could not convert object to clusterCatalog")
-		}
-		if err := localStorage.Delete(catalog.Name); err != nil {
-			return crfinalizer.Result{}, corecontrollers.UpdateStatusStorageDeleteError(&catalog.Status, err)
-		}
-		if err := unpacker.Cleanup(ctx, catalog); err != nil {
-			return crfinalizer.Result{}, corecontrollers.UpdateStatusStorageDeleteError(&catalog.Status, err)
-		}
-		return crfinalizer.Result{}, nil
-	})); err != nil {
-		setupLog.Error(err, "unable to register finalizer", "finalizerKey", corecontrollers.FbcDeletionFinalizer)
+	clusterCatalogFinalizers, err := corecontrollers.NewFinalizers(localStorage, unpacker)
+	if err != nil {
+		setupLog.Error(err, "unable to configure finalizers")
 		os.Exit(1)
 	}
 
@@ -300,10 +285,4 @@ func podNamespace() string {
 		return "olmv1-system"
 	}
 	return string(namespace)
-}
-
-type finalizerFunc func(ctx context.Context, obj client.Object) (crfinalizer.Result, error)
-
-func (f finalizerFunc) Finalize(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-	return f(ctx, obj)
 }
