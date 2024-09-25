@@ -368,10 +368,10 @@ func TestImageRegistry(t *testing.T) {
 				require.NoError(t, err)
 
 				// if the image ref should be a digest ref, make it so
-				// if tt.refType == "digest" {
-				imgName, err = name.ParseReference(fmt.Sprintf("%s/%s", url.Host, "test-image@sha256:"+digest.Hex))
-				require.NoError(t, err)
-				// }
+				if tt.refType == "digest" {
+					imgName, err = name.ParseReference(fmt.Sprintf("%s/%s", url.Host, "test-image@sha256:"+digest.Hex))
+					require.NoError(t, err)
+				}
 			}
 
 			// Inject the image reference if needed
@@ -396,15 +396,15 @@ func TestImageRegistry(t *testing.T) {
 				// If the digest should already exist check that we actually hit it
 				if tt.digestAlreadyExists {
 					assert.Contains(t, buf.String(), "image already unpacked")
-					assert.Equal(t, rs.ResolvedSource.Image.LastUnpacked.Time, unpackDirStat.ModTime())
+					assert.Equal(t, rs.LastTransitionTime.Time, unpackDirStat.ModTime())
 				} else if tt.oldDigestExists {
 					assert.NotContains(t, buf.String(), "image already unpacked")
-					assert.NotEqual(t, rs.ResolvedSource.Image.LastUnpacked.Time, oldDigestModTime)
+					assert.NotEqual(t, rs.LastTransitionTime, oldDigestModTime)
 					assert.NoDirExists(t, oldDigestDir)
 				} else {
-					require.NotNil(t, rs.ResolvedSource.Image.LastUnpacked)
+					require.NotNil(t, rs.LastTransitionTime)
 					require.NotNil(t, rs.ResolvedSource.Image)
-					assert.False(t, rs.ResolvedSource.Image.LastUnpacked.IsZero())
+					assert.False(t, rs.LastTransitionTime.IsZero())
 				}
 			} else {
 				assert.Error(t, err)

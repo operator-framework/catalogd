@@ -4,6 +4,8 @@ import (
 	"context"
 	"io/fs"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	catalogdv1alpha1 "github.com/operator-framework/catalogd/api/core/v1alpha1"
 )
 
@@ -54,6 +56,9 @@ type Result struct {
 	// Message is contextual information about the progress of unpacking the
 	// catalog content.
 	Message string
+
+	// LastTraansitionTime is the timestamp when the transition to the current State happened
+	LastTransitionTime metav1.Time
 }
 
 type State string
