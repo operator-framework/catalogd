@@ -160,7 +160,7 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 		contentURL = r.Storage.ContentURL(catalog.Name)
 
 		updateStatusProgressing(catalog, nil)
-		updateStatusServing(&catalog.Status, unpackResult, contentURL)
+		updateStatusServing(&catalog.Status, unpackResult, contentURL, catalog.GetGeneration())
 
 		var requeueAfter time.Duration
 		switch catalog.Spec.Source.Type {
@@ -178,10 +178,11 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 
 func updateStatusProgressing(catalog *v1alpha1.ClusterCatalog, err error) {
 	progressingCond := metav1.Condition{
-		Type:    v1alpha1.TypeProgressing,
-		Status:  metav1.ConditionFalse,
-		Reason:  v1alpha1.ReasonSucceeded,
-		Message: "Successfully unpacked and stored content from resolved source",
+		Type:               v1alpha1.TypeProgressing,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha1.ReasonSucceeded,
+		Message:            "Successfully unpacked and stored content from resolved source",
+		ObservedGeneration: catalog.GetGeneration(),
 	}
 
 	if err != nil {
@@ -198,26 +199,28 @@ func updateStatusProgressing(catalog *v1alpha1.ClusterCatalog, err error) {
 	meta.SetStatusCondition(&catalog.Status.Conditions, progressingCond)
 }
 
-func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string) {
+func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result *source.Result, contentURL string, generation int64) {
 	status.ResolvedSource = result.ResolvedSource
 	status.ContentURL = contentURL
-	status.LastUnpacked = result.LastTransitionTime
+	status.LastUnpacked = metav1.NewTime(result.UnpackTime)
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:    v1alpha1.TypeServing,
-		Status:  metav1.ConditionTrue,
-		Reason:  v1alpha1.ReasonAvailable,
-		Message: "Serving desired content from resolved source",
+		Type:               v1alpha1.TypeServing,
+		Status:             metav1.ConditionTrue,
+		Reason:             v1alpha1.ReasonAvailable,
+		Message:            "Serving desired content from resolved source",
+		ObservedGeneration: generation,
 	})
 }
 
-func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus) {
+func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus, generation int64) {
 	status.ResolvedSource = nil
 	status.ContentURL = ""
 	status.LastUnpacked = metav1.Time{}
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
-		Type:   v1alpha1.TypeServing,
-		Status: metav1.ConditionFalse,
-		Reason: v1alpha1.ReasonUnavailable,
+		Type:               v1alpha1.TypeServing,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha1.ReasonUnavailable,
+		ObservedGeneration: generation,
 	})
 }
 
@@ -277,7 +280,7 @@ func NewFinalizers(localStorage storage.Instance, unpacker source.Unpacker) (crf
 			updateStatusProgressing(catalog, err)
 			return crfinalizer.Result{StatusUpdated: true}, err
 		}
-		updateStatusNotServing(&catalog.Status)
+		updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
 		if err := unpacker.Cleanup(ctx, catalog); err != nil {
 			updateStatusProgressing(catalog, err)
 			return crfinalizer.Result{StatusUpdated: true}, err

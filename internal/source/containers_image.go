@@ -71,7 +71,7 @@ func (i *ContainersImageRegistry) Unpack(ctx context.Context, catalog *catalogdv
 			panic(fmt.Sprintf("unexpected file at unpack path %q: expected a directory", unpackPath))
 		}
 		l.Info("image already unpacked", "ref", imgRef.String(), "digest", canonicalRef.Digest().String())
-		return successResult(unpackPath, canonicalRef, metav1.NewTime(unpackStat.ModTime())), nil
+		return successResult(unpackPath, canonicalRef, unpackStat.ModTime()), nil
 	}
 
 	//////////////////////////////////////////////////////
@@ -153,10 +153,10 @@ func (i *ContainersImageRegistry) Unpack(ctx context.Context, catalog *catalogdv
 		return nil, fmt.Errorf("error deleting old images: %w", err)
 	}
 
-	return successResult(unpackPath, canonicalRef, metav1.Now()), nil
+	return successResult(unpackPath, canonicalRef, time.Now()), nil
 }
 
-func successResult(unpackPath string, canonicalRef reference.Canonical, lastUnpacked metav1.Time) *Result {
+func successResult(unpackPath string, canonicalRef reference.Canonical, lastUnpacked time.Time) *Result {
 	return &Result{
 		FS: os.DirFS(unpackPath),
 		ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
@@ -166,9 +166,9 @@ func successResult(unpackPath string, canonicalRef reference.Canonical, lastUnpa
 				LastSuccessfulPollAttempt: metav1.NewTime(time.Now()),
 			},
 		},
-		State:              StateUnpacked,
-		Message:            fmt.Sprintf("unpacked %q successfully", canonicalRef),
-		LastTransitionTime: lastUnpacked,
+		State:      StateUnpacked,
+		Message:    fmt.Sprintf("unpacked %q successfully", canonicalRef),
+		UnpackTime: lastUnpacked,
 	}
 }
 
