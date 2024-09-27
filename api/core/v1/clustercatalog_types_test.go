@@ -1,4 +1,4 @@
-package v1alpha1
+package v1
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 func TestPollIntervalCELValidationRules(t *testing.T) {
 	validators := fieldValidatorsFromFile(t, "../../../config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml")
 	pth := "openAPIV3Schema.properties.spec"
-	validator, found := validators["v1alpha1"][pth]
+	validator, found := validators["v1"][pth]
 	assert.True(t, found)
 
 	for name, tc := range map[string]struct {
