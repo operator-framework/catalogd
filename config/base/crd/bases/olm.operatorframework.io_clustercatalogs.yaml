@@ -119,9 +119,7 @@ spec:
                 type: object
                 x-kubernetes-validations:
                 - message: source type 'Image' requires image field
-                  rule: self.type != 'Image' || has(self.image)
-                - message: image field must only be set for source type 'Image'
-                  rule: self.type == 'Image' || !has(self.image)
+                  rule: self.type == 'Image' && has(self.image)
             required:
             - source
             type: object
@@ -266,9 +264,7 @@ spec:
                 type: object
                 x-kubernetes-validations:
                 - message: source type 'Image' requires image field
-                  rule: self.type != 'Image' || has(self.image)
-                - message: image field must only be set for source type 'Image'
-                  rule: self.type == 'Image' || !has(self.image)
+                  rule: self.type == 'Image' && has(self.image)
             type: object
         required:
         - metadata

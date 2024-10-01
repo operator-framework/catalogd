@@ -145,8 +145,7 @@ type ClusterCatalogStatus struct {
 // CatalogSource is a discriminated union of possible sources for a Catalog.
 // CatalogSource contains the sourcing information for a Catalog
 // +union
-// +kubebuilder:validation:XValidation:rule="self.type != 'Image' || has(self.image)",message="source type 'Image' requires image field"
-// +kubebuilder:validation:XValidation:rule="self.type == 'Image' || !has(self.image)",message="image field must only be set for source type 'Image'"
+// +kubebuilder:validation:XValidation:rule="self.type == 'Image' && has(self.image)",message="source type 'Image' requires image field"
 type CatalogSource struct {
 	// type is a required reference to the type of source the catalog is sourced from.
 	//
@@ -167,8 +166,7 @@ type CatalogSource struct {
 // ResolvedCatalogSource is a discriminated union of resolution information for a Catalog.
 // ResolvedCatalogSource contains the information about a sourced Catalog
 // +union
-// +kubebuilder:validation:XValidation:rule="self.type != 'Image' || has(self.image)",message="source type 'Image' requires image field"
-// +kubebuilder:validation:XValidation:rule="self.type == 'Image' || !has(self.image)",message="image field must only be set for source type 'Image'"
+// +kubebuilder:validation:XValidation:rule="self.type == 'Image' && has(self.image)",message="source type 'Image' requires image field"
 type ResolvedCatalogSource struct {
 	// type is a reference to the type of source the catalog is sourced from.
 	//

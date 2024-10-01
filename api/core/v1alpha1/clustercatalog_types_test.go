@@ -78,21 +78,6 @@ func TestSourceCELValidation(t *testing.T) {
 		source   CatalogSource
 		wantErrs []string
 	}{
-		"unsupported source": {
-			source: CatalogSource{
-				Type: "unsupportedType",
-			},
-			wantErrs: []string{},
-		},
-		"non-image source with disallowed image field": {
-			source: CatalogSource{
-				Type:  "notImageSourceType",
-				Image: &ImageSource{},
-			},
-			wantErrs: []string{
-				fmt.Sprintf("%s: Invalid value: \"object\": image field must only be set for source type '%s'", pth, SourceTypeImage),
-			},
-		},
 		"image source missing required image field": {
 			source: CatalogSource{
 				Type: SourceTypeImage,
@@ -133,21 +118,6 @@ func TestResolvedSourceCELValidation(t *testing.T) {
 		source   ResolvedCatalogSource
 		wantErrs []string
 	}{
-		"unsupported source": {
-			source: ResolvedCatalogSource{
-				Type: "unsupportedType",
-			},
-			wantErrs: []string{},
-		},
-		"non-image source with disallowed image field": {
-			source: ResolvedCatalogSource{
-				Type:  "notImageSourceType",
-				Image: &ResolvedImageSource{},
-			},
-			wantErrs: []string{
-				fmt.Sprintf("%s: Invalid value: \"object\": image field must only be set for source type '%s'", pth, SourceTypeImage),
-			},
-		},
 		"image source missing required image field": {
 			source: ResolvedCatalogSource{
 				Type: SourceTypeImage,
