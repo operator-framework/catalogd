@@ -24,7 +24,7 @@ func TestPollIntervalCELValidationRules(t *testing.T) {
 	validators := fieldValidatorsFromFile(t, "../../../config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml")
 	pth := "openAPIV3Schema.properties.spec"
 	validator, found := validators["v1alpha1"][pth]
-	assert.True(t, found)
+	require.True(t, found)
 
 	for name, tc := range map[string]struct {
 		spec     ClusterCatalogSpec
@@ -73,7 +73,7 @@ func TestSourceCELValidation(t *testing.T) {
 	validators := fieldValidatorsFromFile(t, "../../../config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml")
 	pth := "openAPIV3Schema.properties.spec.properties.source"
 	validator, found := validators["v1alpha1"][pth]
-	assert.True(t, found)
+	require.True(t, found)
 	for name, tc := range map[string]struct {
 		source   CatalogSource
 		wantErrs []string
@@ -113,7 +113,7 @@ func TestResolvedSourceCELValidation(t *testing.T) {
 	pth := "openAPIV3Schema.properties.status.properties.resolvedSource"
 	validator, found := validators["v1alpha1"][pth]
 
-	assert.True(t, found)
+	require.True(t, found)
 	for name, tc := range map[string]struct {
 		source   ResolvedCatalogSource
 		wantErrs []string
