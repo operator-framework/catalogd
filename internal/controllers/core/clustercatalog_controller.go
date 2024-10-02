@@ -239,8 +239,9 @@ func (r *ClusterCatalogReconciler) needsUnpacking(catalog *v1alpha1.ClusterCatal
 	}
 	imgRef, err := reference.ParseNamed(catalog.Spec.Source.Image.Ref)
 	if err != nil {
-		// don't retry unpacking an image ref that can't be parsed
-		return false
+		// reconcile if the imageRef can't be parsed so the unpacker can
+		// update the Progressing condition with an error.
+		return true
 	}
 	if _, isDigestBased := imgRef.(reference.Canonical); isDigestBased &&
 		catalog.Spec.Source.Image.Ref != catalog.Status.ResolvedSource.Image.Ref {
