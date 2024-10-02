@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/containers/image/v5/docker/reference"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -237,16 +236,13 @@ func (r *ClusterCatalogReconciler) needsUnpacking(catalog *v1alpha1.ClusterCatal
 	if catalog.Spec.Source.Image == nil {
 		return false
 	}
-	imgRef, err := reference.ParseNamed(catalog.Spec.Source.Image.Ref)
-	if err != nil {
-		// reconcile if the imageRef can't be parsed so the unpacker can
-		// update the Progressing condition with an error.
+	if len(catalog.Status.Conditions) == 0 {
 		return true
 	}
-	if _, isDigestBased := imgRef.(reference.Canonical); isDigestBased &&
-		catalog.Spec.Source.Image.Ref != catalog.Status.ResolvedSource.Image.Ref {
-		// for digest based images, unpack if the source ref changed
-		return true
+	for _, c := range catalog.Status.Conditions {
+		if c.ObservedGeneration != catalog.Generation {
+			return true
+		}
 	}
 	// if pollInterval is nil, don't unpack again
 	if catalog.Spec.Source.Image.PollInterval == nil {

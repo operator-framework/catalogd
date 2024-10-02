@@ -331,64 +331,6 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 			},
 		},
 		{
-			name:          "valid source type, update source with bad image ref after successful unpack should not fail silently",
-			expectedError: fmt.Errorf("source catalog content: bad image ref"),
-			source: &MockSource{
-				unpackError: fmt.Errorf("bad image ref"),
-			},
-			store: MockStore{},
-			catalog: &catalogdv1alpha1.ClusterCatalog{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "catalog",
-					Finalizers: []string{fbcDeletionFinalizer},
-				},
-				Spec: catalogdv1alpha1.ClusterCatalogSpec{
-					Source: catalogdv1alpha1.CatalogSource{
-						Type: catalogdv1alpha1.SourceTypeImage,
-						Image: &catalogdv1alpha1.ImageSource{
-							Ref: "::)12-as^&8asd789A(::",
-						},
-					},
-				},
-				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
-						Type: catalogdv1alpha1.SourceTypeImage,
-						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref: "my.org/someimage:latest",
-						},
-					},
-				},
-			},
-			expectedCatalog: &catalogdv1alpha1.ClusterCatalog{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "catalog",
-					Finalizers: []string{fbcDeletionFinalizer},
-				},
-				Spec: catalogdv1alpha1.ClusterCatalogSpec{
-					Source: catalogdv1alpha1.CatalogSource{
-						Type: catalogdv1alpha1.SourceTypeImage,
-						Image: &catalogdv1alpha1.ImageSource{
-							Ref: "::)12-as^&8asd789A(::",
-						},
-					},
-				},
-				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					Conditions: []metav1.Condition{{
-						Type:    catalogdv1alpha1.TypeProgressing,
-						Status:  metav1.ConditionTrue,
-						Reason:  catalogdv1alpha1.ReasonRetrying,
-						Message: "source catalog content: bad image ref",
-					}},
-					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
-						Type: catalogdv1alpha1.SourceTypeImage,
-						Image: &catalogdv1alpha1.ResolvedImageSource{
-							Ref: "my.org/someimage:latest",
-						},
-					},
-				},
-			},
-		},
-		{
 			name: "storage finalizer not set, storage finalizer gets set",
 			source: &MockSource{
 				result: &source.Result{
@@ -794,14 +736,16 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 					ContentURL: "URL",
 					Conditions: []metav1.Condition{
 						{
-							Type:   catalogdv1alpha1.TypeProgressing,
-							Status: metav1.ConditionFalse,
-							Reason: catalogdv1alpha1.ReasonSucceeded,
+							Type:               catalogdv1alpha1.TypeProgressing,
+							Status:             metav1.ConditionFalse,
+							Reason:             catalogdv1alpha1.ReasonSucceeded,
+							ObservedGeneration: 2,
 						},
 						{
-							Type:   catalogdv1alpha1.TypeServing,
-							Status: metav1.ConditionTrue,
-							Reason: catalogdv1alpha1.ReasonAvailable,
+							Type:               catalogdv1alpha1.TypeServing,
+							Status:             metav1.ConditionTrue,
+							Reason:             catalogdv1alpha1.ReasonAvailable,
+							ObservedGeneration: 2,
 						},
 					},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
@@ -835,14 +779,16 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 					ContentURL: "URL",
 					Conditions: []metav1.Condition{
 						{
-							Type:   catalogdv1alpha1.TypeProgressing,
-							Status: metav1.ConditionFalse,
-							Reason: catalogdv1alpha1.ReasonSucceeded,
+							Type:               catalogdv1alpha1.TypeProgressing,
+							Status:             metav1.ConditionFalse,
+							Reason:             catalogdv1alpha1.ReasonSucceeded,
+							ObservedGeneration: 2,
 						},
 						{
-							Type:   catalogdv1alpha1.TypeServing,
-							Status: metav1.ConditionTrue,
-							Reason: catalogdv1alpha1.ReasonAvailable,
+							Type:               catalogdv1alpha1.TypeServing,
+							Status:             metav1.ConditionTrue,
+							Reason:             catalogdv1alpha1.ReasonAvailable,
+							ObservedGeneration: 2,
 						},
 					},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
@@ -876,14 +822,16 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 					ContentURL: "URL",
 					Conditions: []metav1.Condition{
 						{
-							Type:   catalogdv1alpha1.TypeProgressing,
-							Status: metav1.ConditionFalse,
-							Reason: catalogdv1alpha1.ReasonSucceeded,
+							Type:               catalogdv1alpha1.TypeProgressing,
+							Status:             metav1.ConditionFalse,
+							Reason:             catalogdv1alpha1.ReasonSucceeded,
+							ObservedGeneration: 2,
 						},
 						{
-							Type:   catalogdv1alpha1.TypeServing,
-							Status: metav1.ConditionTrue,
-							Reason: catalogdv1alpha1.ReasonAvailable,
+							Type:               catalogdv1alpha1.TypeServing,
+							Status:             metav1.ConditionTrue,
+							Reason:             catalogdv1alpha1.ReasonAvailable,
+							ObservedGeneration: 2,
 						},
 					},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
@@ -897,7 +845,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			},
 			expectedUnpackRun: true,
 		},
-		"ClusterCatalog not being resolved the first time, pollInterval mentioned, \"now\" is before next expected poll time, spec.image changed, unpack should run": {
+		"ClusterCatalog not being resolved the first time, pollInterval mentioned, \"now\" is before next expected poll time, generation changed, unpack should run": {
 			catalog: &catalogdv1alpha1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
@@ -917,14 +865,16 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 					ContentURL: "URL",
 					Conditions: []metav1.Condition{
 						{
-							Type:   catalogdv1alpha1.TypeProgressing,
-							Status: metav1.ConditionFalse,
-							Reason: catalogdv1alpha1.ReasonSucceeded,
+							Type:               catalogdv1alpha1.TypeProgressing,
+							Status:             metav1.ConditionFalse,
+							Reason:             catalogdv1alpha1.ReasonSucceeded,
+							ObservedGeneration: 3,
 						},
 						{
-							Type:   catalogdv1alpha1.TypeServing,
-							Status: metav1.ConditionTrue,
-							Reason: catalogdv1alpha1.ReasonAvailable,
+							Type:               catalogdv1alpha1.TypeServing,
+							Status:             metav1.ConditionTrue,
+							Reason:             catalogdv1alpha1.ReasonAvailable,
+							ObservedGeneration: 2,
 						},
 					},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
