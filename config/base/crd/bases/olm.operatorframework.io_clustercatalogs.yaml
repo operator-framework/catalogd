@@ -148,7 +148,7 @@ spec:
                   The current set of reasons are:
                     - "Succeeded", this reason is set on the "Progressing" condition when progressing to a new state is successful.
                     - "Blocked", this reason is set on the "Progressing" condition when the ClusterCatalog controller has encountered an error that requires manual intervention for recovery.
-                    - "Retrying", this reason is set on the "Progressing" condition when the ClusterCatalog controller has encountered an error that could be resolved on subsequent reconciliation attempts.
+                    - "Retrying", this reason is set on the "Progressing" condition when the ClusterCatalog controller has encountered an error that might be resolvable on subsequent reconciliation attempts.
                     - "Available", this reason is set on the "Serving" condition when the contents of the ClusterCatalog are being served via an endpoint on the HTTP(S) web server.
                     - "Unavailable", this reason is set on the "Serving" condition when there is not an endpoint on the HTTP(S) web server that is serving the contents of the ClusterCatalog.
                 items:
