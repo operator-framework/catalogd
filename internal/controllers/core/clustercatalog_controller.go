@@ -88,6 +88,7 @@ func (r *ClusterCatalogReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err := r.Client.Get(ctx, req.NamespacedName, &existingCatsrc); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+
 	reconciledCatsrc := existingCatsrc.DeepCopy()
 	res, reconcileErr := r.reconcile(ctx, reconciledCatsrc)
 
@@ -156,6 +157,31 @@ func (r *ClusterCatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // nolint:unparam
 func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.ClusterCatalog) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
+
+	// Check if the catalog availability is set to disabled, if true then
+	// unset content URL, delete it from the cache and set appropriate status
+	if catalog.Spec.Availability == v1alpha1.AvailabilityDisabled {
+		// Delete the catalog from local cache
+		if err := r.Storage.Delete(catalog.Name); err != nil {
+			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+			return ctrl.Result{}, err
+		}
+
+		// Set status.conditions[type=Serving] to False, unset status.contentURL and
+		// update status.lastUnpacked
+		updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
+		if err := r.Unpacker.Cleanup(ctx, catalog); err != nil {
+			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+			return ctrl.Result{}, err
+		}
+		r.deleteStoredCatalog(catalog.Name)
+
+		// Set status.conditions[type=Progressing] to False as we are done with
+		// all that needs to be done with the catalog
+		updateStatusCatalogDisabled(&catalog.Status, catalog.GetGeneration())
+
+		return ctrl.Result{}, nil
+	}
 
 	finalizeResult, err := r.finalizers.Finalize(ctx, catalog)
 	if err != nil {
@@ -313,6 +339,17 @@ func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result source.Re
 		Message:            "Serving desired content from resolved source",
 		ObservedGeneration: generation,
 	})
+}
+
+func updateStatusCatalogDisabled(status *v1alpha1.ClusterCatalogStatus, generation int64) {
+	progressingCond := metav1.Condition{
+		Type:               v1alpha1.TypeProgressing,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha1.ReasonDisabled,
+		Message:            "Catalog availability is set to Disabled",
+		ObservedGeneration: generation,
+	}
+	meta.SetStatusCondition(&status.Conditions, progressingCond)
 }
 
 func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus, generation int64) {
