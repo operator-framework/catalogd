@@ -106,15 +106,15 @@ type ClusterCatalogStatus struct {
 	//   - Message: a human-readable message that further elaborates on the state of the condition.
 	//
 	// The current set of condition types are:
-    //   - "Serving", which represents whether or not the contents of the catalog are being served via the HTTP(S) web server.
-    //   - "Progressing", which represents whether or not the ClusterCatalog is progressing towards a new state.
+	//   - "Serving", which represents whether or not the contents of the catalog are being served via the HTTP(S) web server.
+	//   - "Progressing", which represents whether or not the ClusterCatalog is progressing towards a new state.
 	//
 	// The current set of reasons are:
 	//   - "Succeeded", this reason is set on the "Progressing" condition when progressing to a new state is successful.
 	//   - "Blocked", this reason is set on the "Progressing" condition when the ClusterCatalog controller has encountered an error that requires manual intervention for recovery.
 	//   - "Retrying", this reason is set on the "Progressing" condition when the ClusterCatalog controller has encountered an error that could be resolved on subsequent reconciliation attempts.
-    //   - "Available", this reason is set on the "Serving" condition when the contents of the ClusterCatalog are being served via an endpoint on the HTTP(S) web server.
-    //   - "Unavailable", this reason is set on the "Serving" condition when there is not an endpoint on the HTTP(S) web server that is serving the contents of the ClusterCatalog.
+	//   - "Available", this reason is set on the "Serving" condition when the contents of the ClusterCatalog are being served via an endpoint on the HTTP(S) web server.
+	//   - "Unavailable", this reason is set on the "Serving" condition when there is not an endpoint on the HTTP(S) web server that is serving the contents of the ClusterCatalog.
 	//
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
