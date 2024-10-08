@@ -169,16 +169,18 @@ func main() {
 		},
 	})
 
-	cacheOptions := crcache.Options{}
+	cacheOptions := crcache.Options{
+		ByObject: map[client.Object]crcache.ByObject{},
+	}
 	if globalPullSecretKey != nil {
-		cacheOptions = crcache.Options{
-			ByObject: map[client.Object]crcache.ByObject{
-				&corev1.Secret{}: {Field: fields.SelectorFromSet(map[string]string{
-					"metadata.name": globalPullSecretKey.Name,
-				})},
-			},
-			DefaultNamespaces: map[string]crcache.Config{
-				globalPullSecretKey.Namespace: {LabelSelector: k8slabels.Everything()},
+		cacheOptions.ByObject[&corev1.Secret{}] = crcache.ByObject{
+			Namespaces: map[string]crcache.Config{
+				globalPullSecretKey.Namespace: {
+					LabelSelector: k8slabels.Everything(),
+					FieldSelector: fields.SelectorFromSet(map[string]string{
+						"metadata.name": globalPullSecretKey.Name,
+					}),
+				},
 			},
 		}
 	}
