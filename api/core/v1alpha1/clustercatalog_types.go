@@ -40,6 +40,9 @@ const (
 	ReasonBlocked   = "Blocked"
 
 	MetadataNameLabel = "olm.operatorframework.io/metadata.name"
+
+	AvailabilityEnabled  = "Enabled"
+	AvailabilityDisabled = "Disabled"
 )
 
 //+kubebuilder:object:root=true
@@ -92,6 +95,14 @@ type ClusterCatalogSpec struct {
 	// +kubebuilder:default:=0
 	// +optional
 	Priority int32 `json:"priority"`
+
+	// Availability is an optional field that allows users to define whether the ClusterCatalog is utilized by the operator-controller.
+	// If set to "Enabled", the catalog will be used for updates, serving contents, and package installations.
+	// If set to "Disabled", the catalog will be ignored by the operator-controller, meaning it will not be used for any operations.
+	// +kubebuilder:validation:Enum="Disabled";"Enabled"
+	// +kubebuilder:default="Enabled"
+	// +optional
+	Availability string `json:"availability,omitempty"`
 }
 
 // ClusterCatalogStatus defines the observed state of ClusterCatalog

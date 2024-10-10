@@ -88,6 +88,7 @@ func (r *ClusterCatalogReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err := r.Client.Get(ctx, req.NamespacedName, &existingCatsrc); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+
 	reconciledCatsrc := existingCatsrc.DeepCopy()
 	res, reconcileErr := r.reconcile(ctx, reconciledCatsrc)
 
@@ -164,6 +165,39 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alp
 	if finalizeResult.Updated || finalizeResult.StatusUpdated {
 		// On create: make sure the finalizer is applied before we do anything
 		// On delete: make sure we do nothing after the finalizer is removed
+		return ctrl.Result{}, nil
+	}
+
+	// Check if the catalog availability is set to disabled, if true then
+	// unset content URL, delete it from the cache and set appropriate status
+	if catalog.Spec.Availability == v1alpha1.AvailabilityDisabled {
+
+		// Delete the catalog from local
+		if err := r.Storage.Delete(catalog.Name); err != nil {
+			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+			return ctrl.Result{}, err
+		}
+
+		// Set status.conditions[type=Serving] to False, unset status.contentURL and
+		// update status.lastUnpacked
+		updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
+		if err := r.Unpacker.Cleanup(ctx, catalog); err != nil {
+			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+			return ctrl.Result{}, err
+		}
+		r.deleteStoredCatalog(catalog.Name)
+
+		// Set status.conditions[type=Progressing] to False as we are done with
+		// all that needs to be done with the catalog
+		progressingCond := metav1.Condition{
+			Type:               v1alpha1.TypeProgressing,
+			Status:             metav1.ConditionFalse,
+			Reason:             v1alpha1.ReasonUnavailable,
+			Message:            "Catalog availability is set to Disabled",
+			ObservedGeneration: catalog.GetGeneration(),
+		}
+		meta.SetStatusCondition(&catalog.Status.Conditions, progressingCond)
+
 		return ctrl.Result{}, nil
 	}
 

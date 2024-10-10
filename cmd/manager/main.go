@@ -260,6 +260,7 @@ func main() {
 
 	localStorage = storage.LocalDir{RootDir: storeDir, BaseURL: baseStorageURL}
 
+	// Config for the the catalogd web server
 	catalogServerConfig := serverutil.CatalogServerConfig{
 		ExternalAddr: externalAddr,
 		CatalogAddr:  catalogServerAddr,
@@ -268,6 +269,7 @@ func main() {
 		LocalStorage: localStorage,
 	}
 
+	// Start the catalogd web server
 	err = serverutil.AddCatalogServerToManager(mgr, catalogServerConfig, cw)
 	if err != nil {
 		setupLog.Error(err, "unable to configure catalog server")
