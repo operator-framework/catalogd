@@ -38,49 +38,48 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
     
     *Example output*
     ```sh
-    Name:         operatorhubio
-    Namespace:    
-    Labels:       olm.operatorframework.io/metadata.name=operatorhubio
-    Annotations:  <none>
-    API Version:  olm.operatorframework.io/v1alpha1
-    Kind:         ClusterCatalog
-    Metadata:
-      Creation Timestamp:  2024-09-12T13:37:04Z
-      Finalizers:
-        olm.operatorframework.io/delete-server-cache
-      Generation:        1
-      Resource Version:  961
-      UID:               fa6bb9cf-1a36-4189-a7a0-83284c3f6f55
-    Spec:
-      Priority:  0
-      Source:
-        Image:
-          Poll Interval:  10m0s
-          Ref:            quay.io/operatorhubio/catalog:latest
-        Type:             Image
-    Status:
-      Conditions:
-        Last Transition Time:  2024-09-12T13:37:53Z
-        Message:               Successfully unpacked and stored content from quay.io/operatorhubio/catalog:latest
-        Reason:                Succeeded
-        Status:                False
-        Type:                  Progressing
-        Last Transition Time:  2024-09-12T13:37:53Z
-        Message:               Content from quay.io/operatorhubio/catalog:latest is being served
-        Reason:                Available
-        Status:                True
-        Type:                  Serving
-      Content URL:             https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/all.json
-      Last Unpacked:           2024-09-12T13:37:52Z
-      Observed Generation:     1
-      Resolved Source:
-        Image:
-          Last Poll Attempt:  2024-09-12T13:37:52Z
-          Last Unpacked:      2024-09-12T13:37:52Z
-          Ref:                quay.io/operatorhubio/catalog:latest
-          Resolved Ref:       quay.io/operatorhubio/catalog@sha256:4453a361198d39d0390fd8c1a7f07b5a5a3ae1e8dac9979ef0c4eba46299df16
-        Type:                 Image
-   Events:                   <none>
+Name:         operatorhubio
+Namespace:
+Labels:       olm.operatorframework.io/metadata.name=operatorhubio
+Annotations:  <none>
+API Version:  olm.operatorframework.io/v1alpha1
+Kind:         ClusterCatalog
+Metadata:
+  Creation Timestamp:  2024-10-10T19:25:01Z
+  Finalizers:
+    olm.operatorframework.io/delete-server-cache
+  Generation:        1
+  Resource Version:  10206
+  UID:               8a83a2e2-6f7f-430c-9359-258003483b12
+Spec:
+  Priority:  0
+  Source:
+    Image:
+      Poll Interval:  10m0s
+      Ref:            quay.io/operatorhubio/catalog:latest
+    Type:             Image
+Status:
+  Base URL:  https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api
+  Conditions:
+    Last Transition Time:  2024-10-10T19:25:15Z
+    Message:               Successfully unpacked and stored content from resolved source
+    Observed Generation:   1
+    Reason:                Succeeded
+    Status:                False
+    Type:                  Progressing
+    Last Transition Time:  2024-10-10T19:25:15Z
+    Message:               Serving desired content from resolved source
+    Observed Generation:   1
+    Reason:                Available
+    Status:                True
+    Type:                  Serving
+  Last Unpacked:           2024-10-10T19:25:14Z
+  Resolved Source:
+    Image:
+      Last Successful Poll Attempt:  2024-10-10T20:45:33Z
+      Ref:                           quay.io/operatorhubio/catalog@sha256:7fbc6c61dc36e8225d4cb392cf0ffc754c179a82b12f19b91970c09b431aa61f
+    Type:                            Image
+Events:                              <none>
    ```
 
 1. Port forward the `catalogd-service` service in the `olmv1-system` namespace:
@@ -88,10 +87,10 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
     $ kubectl -n olmv1-system port-forward svc/catalogd-service 8080:443
     ```
 
-1. Run the following command to get a list of packages:
+1. Access the `v1/all` service endpoint and filter the results to a list of packages by running the following command:
 
     ```sh
-    $ curl -k https://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select(.schema == "olm.package") | .name'
+    $ curl https://localhost:8080/catalogs/operatorhubio/api/vi/all | jq -s '.[] | select(.schema == "olm.package") | .name'
     ```
 
     *Example output*
@@ -118,7 +117,7 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
 1. Run the following command to get a list of channels for the `ack-acm-controller` package:
 
     ```sh
-    $ curl -k https://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select(.schema == "olm.channel") | select(.package == "ack-acm-controller") | .name'
+    $ curl https://localhost:8080/catalogs/operatorhubio/api/v1/all | jq -s '.[] | select(.schema == "olm.channel") | select(.package == "ack-acm-controller") | .name'
     ```
 
     *Example output*
@@ -132,7 +131,7 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
 1. Run the following command to get a list of bundles belonging to the `ack-acm-controller` package:
 
     ```sh
-    $ curl -k https://localhost:8080/catalogs/operatorhubio/all.json | jq -s '.[] | select(.schema == "olm.bundle") | select(.package == "ack-acm-controller") | .name'
+    $ curl https://localhost:8080/catalogs/operatorhubio/api/v1/all | jq -s '.[] | select(.schema == "olm.bundle") | select(.package == "ack-acm-controller") | .name'
     ```
     
     *Example output*
@@ -153,7 +152,7 @@ Thanks for your interest in contributing to `catalogd`!
 
 `catalogd` is in the very early stages of development and a more in depth contributing guide will come in the near future.
 
-In the mean time, it is assumed you know how to make contributions to open source projects in general and this guide will only focus on how to manually test your changes (no automated testing yet).
+In the meantime, it is assumed you know how to make contributions to open source projects in general and this guide will only focus on how to manually test your changes (no automated testing yet).
 
 If you have any questions, feel free to reach out to us on the Kubernetes Slack channel [#olm-dev](https://kubernetes.slack.com/archives/C0181L6JYQ2) or [create an issue](https://github.com/operator-framework/catalogd/issues/new)
 ### Testing Local Changes

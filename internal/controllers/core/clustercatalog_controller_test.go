@@ -261,7 +261,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "URL",
+					BaseURL: "URL",
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeServing,
@@ -393,7 +393,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL:   "URL",
+					BaseURL:      "URL",
 					LastUnpacked: metav1.Time{},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: catalogdv1alpha1.SourceTypeImage,
@@ -430,7 +430,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "",
+					BaseURL: "",
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeServing,
@@ -473,7 +473,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "URL",
+					BaseURL: "URL",
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -503,7 +503,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "URL",
+					BaseURL: "URL",
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -544,7 +544,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "URL",
+					BaseURL: "URL",
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -848,7 +848,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 	successfulObservedGeneration := int64(2)
 	successfulUnpackStatus := func(mods ...func(status *catalogdv1alpha1.ClusterCatalogStatus)) catalogdv1alpha1.ClusterCatalogStatus {
 		s := catalogdv1alpha1.ClusterCatalogStatus{
-			ContentURL: "URL",
+			BaseURL: "URL",
 			Conditions: []metav1.Condition{
 				{
 					Type:               catalogdv1alpha1.TypeProgressing,

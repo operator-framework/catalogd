@@ -16,16 +16,16 @@ import (
 
 // LocalDir is a storage Instance. When Storing a new FBC contained in
 // fs.FS, the content is first written to a temporary file, after which
-// it is copied to it's final destination in RootDir/catalogName/. This is
+// it is copied to its final destination in RootDir/catalogName/. This is
 // done so that clients accessing the content stored in RootDir/catalogName have
 // atomic view of the content for a catalog.
 type LocalDir struct {
 	RootDir string
-	BaseURL *url.URL
+	RootURL *url.URL
 }
 
 func (s LocalDir) Store(ctx context.Context, catalog string, fsys fs.FS) error {
-	fbcDir := filepath.Join(s.RootDir, catalog)
+	fbcDir := filepath.Join(s.RootDir, catalog, "api", "v1")
 	if err := os.MkdirAll(fbcDir, 0700); err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (s LocalDir) Store(ctx context.Context, catalog string, fsys fs.FS) error {
 	}); err != nil {
 		return fmt.Errorf("error walking FBC root: %w", err)
 	}
-	fbcFile := filepath.Join(fbcDir, "all.json")
+	fbcFile := filepath.Join(fbcDir, "all")
 	return os.Rename(tempFile.Name(), fbcFile)
 }
 
@@ -52,25 +52,25 @@ func (s LocalDir) Delete(catalog string) error {
 }
 
 func (s LocalDir) ContentURL(catalog string) string {
-	return fmt.Sprintf("%s%s/all.json", s.BaseURL, catalog)
+	return fmt.Sprintf("%s%s/api", s.RootURL, catalog)
 }
 
 func (s LocalDir) StorageServerHandler() http.Handler {
 	mux := http.NewServeMux()
 	fsHandler := http.FileServer(http.FS(&filesOnlyFilesystem{os.DirFS(s.RootDir)}))
-	spHandler := http.StripPrefix(s.BaseURL.Path, fsHandler)
+	spHandler := http.StripPrefix(s.RootURL.Path, fsHandler)
 	gzHandler := gzhttp.GzipHandler(spHandler)
 
 	typeHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/jsonl")
 		gzHandler.ServeHTTP(w, r)
 	})
-	mux.Handle(s.BaseURL.Path, typeHandler)
+	mux.Handle(s.RootURL.Path, typeHandler)
 	return mux
 }
 
 func (s LocalDir) ContentExists(catalog string) bool {
-	file, err := os.Stat(filepath.Join(s.RootDir, catalog, "all.json"))
+	file, err := os.Stat(filepath.Join(s.RootDir, catalog, "api", "v1", "all"))
 	if err != nil {
 		return false
 	}

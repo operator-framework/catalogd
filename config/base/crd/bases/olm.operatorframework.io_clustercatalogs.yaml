@@ -145,6 +145,10 @@ spec:
           status:
             description: ClusterCatalogStatus defines the observed state of ClusterCatalog
             properties:
+              baseURL:
+                description: baseURL is a cluster-internal URL from which on-cluster
+                  components can access the API endpoint for this catalog
+                type: string
               conditions:
                 description: |-
                   conditions is a representation of the current state for this ClusterCatalog.
@@ -221,11 +225,6 @@ spec:
                   - type
                   type: object
                 type: array
-              contentURL:
-                description: |-
-                  contentURL is a cluster-internal URL from which on-cluster components
-                  can read the content of a catalog
-                type: string
               lastUnpacked:
                 description: |-
                   lastUnpacked represents the time when the
