@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"path"
 	"strings"
 
 	"k8s.io/client-go/kubernetes"
@@ -17,12 +18,12 @@ func ReadTestCatalogServerContents(ctx context.Context, catalog *catalogd.Cluste
 	if catalog == nil {
 		return nil, fmt.Errorf("cannot read nil catalog")
 	}
-	url, err := url.Parse(catalog.Status.ContentURL)
+	url, err := url.Parse(catalog.Status.BaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing clustercatalog url %s: %v", catalog.Status.ContentURL, err)
+		return nil, fmt.Errorf("error parsing clustercatalog url %s: %v", catalog.Status.BaseURL, err)
 	}
 	// url is expected to be in the format of
-	// http://{service_name}.{namespace}.svc/{catalog_name}/all.json
+	// http://{service_name}.{namespace}.svc/api/{catalog_name}/v1/all
 	// so to get the namespace and name of the service we grab only
 	// the hostname and split it on the '.' character
 	ns := strings.Split(url.Hostname(), ".")[1]
@@ -37,7 +38,7 @@ func ReadTestCatalogServerContents(ctx context.Context, catalog *catalogd.Cluste
 			port = "80"
 		}
 	}
-	resp := kubeClient.CoreV1().Services(ns).ProxyGet(url.Scheme, name, port, url.Path, map[string]string{})
+	resp := kubeClient.CoreV1().Services(ns).ProxyGet(url.Scheme, name, port, path.Join(url.Path, "v1", "all"), map[string]string{})
 	rc, err := resp.Stream(ctx)
 	if err != nil {
 		return nil, err

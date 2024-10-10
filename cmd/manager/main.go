@@ -258,7 +258,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	localStorage = storage.LocalDir{RootDir: storeDir, BaseURL: baseStorageURL}
+	localStorage = storage.LocalDir{RootDir: storeDir, RootURL: baseStorageURL}
 
 	catalogServerConfig := serverutil.CatalogServerConfig{
 		ExternalAddr: externalAddr,
