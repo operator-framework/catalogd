@@ -1,4 +1,4 @@
-package v1alpha1
+package v1
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 func TestPollIntervalCELValidationRules(t *testing.T) {
 	validators := fieldValidatorsFromFile(t, "../../../config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml")
 	pth := "openAPIV3Schema.properties.spec"
-	validator, found := validators["v1alpha1"][pth]
+	validator, found := validators[GroupVersion.Version][pth]
 	require.True(t, found)
 
 	for name, tc := range map[string]struct {
@@ -72,7 +72,7 @@ func TestPollIntervalCELValidationRules(t *testing.T) {
 func TestSourceCELValidation(t *testing.T) {
 	validators := fieldValidatorsFromFile(t, "../../../config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml")
 	pth := "openAPIV3Schema.properties.spec.properties.source"
-	validator, found := validators["v1alpha1"][pth]
+	validator, found := validators[GroupVersion.Version][pth]
 	require.True(t, found)
 	for name, tc := range map[string]struct {
 		source   CatalogSource
@@ -111,7 +111,7 @@ func TestSourceCELValidation(t *testing.T) {
 func TestResolvedSourceCELValidation(t *testing.T) {
 	validators := fieldValidatorsFromFile(t, "../../../config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml")
 	pth := "openAPIV3Schema.properties.status.properties.resolvedSource"
-	validator, found := validators["v1alpha1"][pth]
+	validator, found := validators[GroupVersion.Version][pth]
 
 	require.True(t, found)
 	for name, tc := range map[string]struct {
