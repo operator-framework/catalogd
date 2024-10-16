@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -157,28 +158,22 @@ func (r *ClusterCatalogReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // nolint:unparam
 func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *v1alpha1.ClusterCatalog) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
-
 	// Check if the catalog availability is set to disabled, if true then
 	// unset content URL, delete it from the cache and set appropriate status
 	if catalog.Spec.Availability == v1alpha1.AvailabilityDisabled {
 		// Delete the catalog from local cache
-		if err := r.Storage.Delete(catalog.Name); err != nil {
-			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+		err := r.deleteCatalogCache(ctx, catalog)
+		if err != nil {
 			return ctrl.Result{}, err
 		}
-
-		// Set status.conditions[type=Serving] to False, unset status.contentURL and
-		// update status.lastUnpacked
-		updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
-		if err := r.Unpacker.Cleanup(ctx, catalog); err != nil {
-			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
-			return ctrl.Result{}, err
-		}
-		r.deleteStoredCatalog(catalog.Name)
 
 		// Set status.conditions[type=Progressing] to False as we are done with
 		// all that needs to be done with the catalog
 		updateStatusCatalogDisabled(&catalog.Status, catalog.GetGeneration())
+
+		// Remove the fbcDeletionFinalizer as we do not want a finalizer attached to the catalog
+		// when it is disabled. Because the finalizer serves no purpose now.
+		controllerutil.RemoveFinalizer(catalog, fbcDeletionFinalizer)
 
 		return ctrl.Result{}, nil
 	}
@@ -395,18 +390,8 @@ func (r *ClusterCatalogReconciler) setupFinalizers() error {
 		if !ok {
 			panic("could not convert object to clusterCatalog")
 		}
-		if err := r.Storage.Delete(catalog.Name); err != nil {
-			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
-			return crfinalizer.Result{StatusUpdated: true}, err
-		}
-		updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
-		if err := r.Unpacker.Cleanup(ctx, catalog); err != nil {
-			updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
-			return crfinalizer.Result{StatusUpdated: true}, err
-		}
-
-		r.deleteStoredCatalog(catalog.Name)
-		return crfinalizer.Result{StatusUpdated: true}, nil
+		err := r.deleteCatalogCache(ctx, catalog)
+		return crfinalizer.Result{StatusUpdated: true}, err
 	}))
 	if err != nil {
 		return err
@@ -419,4 +404,18 @@ func (r *ClusterCatalogReconciler) deleteStoredCatalog(catalogName string) {
 	r.storedCatalogsMu.Lock()
 	defer r.storedCatalogsMu.Unlock()
 	delete(r.storedCatalogs, catalogName)
+}
+
+func (r *ClusterCatalogReconciler) deleteCatalogCache(ctx context.Context, catalog *v1alpha1.ClusterCatalog) error {
+	if err := r.Storage.Delete(catalog.Name); err != nil {
+		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+		return err
+	}
+	updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
+	if err := r.Unpacker.Cleanup(ctx, catalog); err != nil {
+		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+		return err
+	}
+	r.deleteStoredCatalog(catalog.Name)
+	return nil
 }

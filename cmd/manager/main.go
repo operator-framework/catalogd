@@ -269,7 +269,6 @@ func main() {
 		LocalStorage: localStorage,
 	}
 
-	// Start the catalogd web server
 	err = serverutil.AddCatalogServerToManager(mgr, catalogServerConfig, cw)
 	if err != nil {
 		setupLog.Error(err, "unable to configure catalog server")
