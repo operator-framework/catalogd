@@ -18,12 +18,15 @@ func ReadTestCatalogServerContents(ctx context.Context, catalog *catalogd.Cluste
 	if catalog == nil {
 		return nil, fmt.Errorf("cannot read nil catalog")
 	}
-	url, err := url.Parse(catalog.Status.BaseURL)
+	if catalog.Status.URLs == nil {
+		return nil, fmt.Errorf("catalog %s has no catalog urls", catalog.Name)
+	}
+	url, err := url.Parse(catalog.Status.URLs.Base)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing clustercatalog url %s: %v", catalog.Status.BaseURL, err)
+		return nil, fmt.Errorf("error parsing clustercatalog url %s: %v", catalog.Status.URLs.Base, err)
 	}
 	// url is expected to be in the format of
-	// http://{service_name}.{namespace}.svc/api/{catalog_name}/v1/all
+	// http://{service_name}.{namespace}.svc/{catalog_name}/api
 	// so to get the namespace and name of the service we grab only
 	// the hostname and split it on the '.' character
 	ns := strings.Split(url.Hostname(), ".")[1]

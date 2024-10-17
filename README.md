@@ -38,48 +38,49 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
     
     *Example output*
     ```sh
-Name:         operatorhubio
-Namespace:
-Labels:       olm.operatorframework.io/metadata.name=operatorhubio
-Annotations:  <none>
-API Version:  olm.operatorframework.io/v1alpha1
-Kind:         ClusterCatalog
-Metadata:
-  Creation Timestamp:  2024-10-10T19:25:01Z
-  Finalizers:
-    olm.operatorframework.io/delete-server-cache
-  Generation:        1
-  Resource Version:  10206
-  UID:               8a83a2e2-6f7f-430c-9359-258003483b12
-Spec:
-  Priority:  0
-  Source:
-    Image:
-      Poll Interval:  10m0s
-      Ref:            quay.io/operatorhubio/catalog:latest
-    Type:             Image
-Status:
-  Base URL:  https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api
-  Conditions:
-    Last Transition Time:  2024-10-10T19:25:15Z
-    Message:               Successfully unpacked and stored content from resolved source
-    Observed Generation:   1
-    Reason:                Succeeded
-    Status:                False
-    Type:                  Progressing
-    Last Transition Time:  2024-10-10T19:25:15Z
-    Message:               Serving desired content from resolved source
-    Observed Generation:   1
-    Reason:                Available
-    Status:                True
-    Type:                  Serving
-  Last Unpacked:           2024-10-10T19:25:14Z
-  Resolved Source:
-    Image:
-      Last Successful Poll Attempt:  2024-10-10T20:45:33Z
-      Ref:                           quay.io/operatorhubio/catalog@sha256:7fbc6c61dc36e8225d4cb392cf0ffc754c179a82b12f19b91970c09b431aa61f
-    Type:                            Image
-Events:                              <none>
+    Name:         operatorhubio
+    Namespace:
+    Labels:       olm.operatorframework.io/metadata.name=operatorhubio
+    Annotations:  <none>
+    API Version:  olm.operatorframework.io/v1alpha1
+    Kind:         ClusterCatalog
+    Metadata:
+      Creation Timestamp:  2024-10-17T13:48:46Z
+      Finalizers:
+        olm.operatorframework.io/delete-server-cache
+      Generation:        1
+      Resource Version:  7908
+      UID:               34eeaa91-9f8e-4254-9937-0ae9d25e92df
+    Spec:
+      Priority:  0
+      Source:
+        Image:
+          Poll Interval:  10m0s
+          Ref:            quay.io/operatorhubio/catalog:latest
+        Type:             Image
+    Status:
+      Conditions:
+        Last Transition Time:  2024-10-17T13:48:59Z
+        Message:               Successfully unpacked and stored content from resolved source
+        Observed Generation:   1
+        Reason:                Succeeded
+        Status:                False
+        Type:                  Progressing
+        Last Transition Time:  2024-10-17T13:48:59Z
+        Message:               Serving desired content from resolved source
+        Observed Generation:   1
+        Reason:                Available
+        Status:                True
+        Type:                  Serving
+      Last Unpacked:           2024-10-17T13:48:58Z
+      Resolved Source:
+        Image:
+          Last Successful Poll Attempt:  2024-10-17T14:49:59Z
+          Ref:                           quay.io/operatorhubio/catalog@sha256:82be554b15ff246d8cc428f8d2f4cf5857c02ce3225d95d92a769ea3095e1fc7
+        Type:                            Image
+      Urls:
+        Base:  https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api
+    Events:    <none>
    ```
 
 1. Port forward the `catalogd-service` service in the `olmv1-system` namespace:
@@ -90,7 +91,7 @@ Events:                              <none>
 1. Access the `v1/all` service endpoint and filter the results to a list of packages by running the following command:
 
     ```sh
-    $ curl https://localhost:8080/catalogs/operatorhubio/api/vi/all | jq -s '.[] | select(.schema == "olm.package") | .name'
+    $ curl https://localhost:8080/catalogs/operatorhubio/api/v1/all | jq -s '.[] | select(.schema == "olm.package") | .name'
     ```
 
     *Example output*

@@ -82,7 +82,7 @@ var _ = Describe("LocalDir Storage Test", func() {
 			Expect(diff).To(Equal(""))
 		})
 		It("should form the content URL correctly", func() {
-			Expect(store.ContentURL(catalog)).To(Equal(fmt.Sprintf("%s%s/api", baseURL, catalog)))
+			Expect(store.ContentURL(catalog)).To(Equal(baseURL.JoinPath(catalog, "api").String()))
 		})
 		It("should report content exists", func() {
 			Expect(store.ContentExists(catalog)).To(BeTrue())

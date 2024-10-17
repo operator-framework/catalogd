@@ -261,7 +261,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					BaseURL: "URL",
+					URLs: &catalogdv1alpha1.CatalogURLs{Base: "URL"},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeServing,
@@ -393,7 +393,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					BaseURL:      "URL",
+					URLs:         &catalogdv1alpha1.CatalogURLs{},
 					LastUnpacked: metav1.Time{},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: catalogdv1alpha1.SourceTypeImage,
@@ -430,7 +430,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					BaseURL: "",
+					URLs: &catalogdv1alpha1.CatalogURLs{},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeServing,
@@ -473,7 +473,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					BaseURL: "URL",
+					URLs: &catalogdv1alpha1.CatalogURLs{},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -503,7 +503,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					BaseURL: "URL",
+					URLs: &catalogdv1alpha1.CatalogURLs{},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -544,7 +544,6 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					BaseURL: "URL",
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -574,6 +573,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					},
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
+					URLs: &catalogdv1alpha1.CatalogURLs{},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeProgressing,
@@ -612,7 +612,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					Availability: "Disabled",
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL:   "URL",
+					URLs:         &catalogdv1alpha1.CatalogURLs{Base: "URL"},
 					LastUnpacked: metav1.Time{},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: catalogdv1alpha1.SourceTypeImage,
@@ -648,7 +648,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					Availability: "Disabled",
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "",
+					URLs: &catalogdv1alpha1.CatalogURLs{},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeServing,
@@ -688,7 +688,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					Availability: "Disabled",
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL:   "URL",
+					URLs:         &catalogdv1alpha1.CatalogURLs{Base: "URL"},
 					LastUnpacked: metav1.Time{},
 					ResolvedSource: &catalogdv1alpha1.ResolvedCatalogSource{
 						Type: catalogdv1alpha1.SourceTypeImage,
@@ -725,7 +725,7 @@ func TestCatalogdControllerReconcile(t *testing.T) {
 					Availability: "Disabled",
 				},
 				Status: catalogdv1alpha1.ClusterCatalogStatus{
-					ContentURL: "",
+					URLs: &catalogdv1alpha1.CatalogURLs{},
 					Conditions: []metav1.Condition{
 						{
 							Type:   catalogdv1alpha1.TypeServing,
@@ -848,7 +848,7 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 	successfulObservedGeneration := int64(2)
 	successfulUnpackStatus := func(mods ...func(status *catalogdv1alpha1.ClusterCatalogStatus)) catalogdv1alpha1.ClusterCatalogStatus {
 		s := catalogdv1alpha1.ClusterCatalogStatus{
-			BaseURL: "URL",
+			URLs: &catalogdv1alpha1.CatalogURLs{Base: "URL"},
 			Conditions: []metav1.Condition{
 				{
 					Type:               catalogdv1alpha1.TypeProgressing,

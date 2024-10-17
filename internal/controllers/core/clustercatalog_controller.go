@@ -325,7 +325,10 @@ func updateStatusProgressing(status *v1alpha1.ClusterCatalogStatus, generation i
 
 func updateStatusServing(status *v1alpha1.ClusterCatalogStatus, result source.Result, contentURL string, generation int64) {
 	status.ResolvedSource = result.ResolvedSource
-	status.BaseURL = contentURL
+	if status.URLs == nil {
+		status.URLs = &v1alpha1.CatalogURLs{}
+	}
+	status.URLs.Base = contentURL
 	status.LastUnpacked = metav1.NewTime(result.UnpackTime)
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type:               v1alpha1.TypeServing,
@@ -349,7 +352,10 @@ func updateStatusCatalogDisabled(status *v1alpha1.ClusterCatalogStatus, generati
 
 func updateStatusNotServing(status *v1alpha1.ClusterCatalogStatus, generation int64) {
 	status.ResolvedSource = nil
-	status.BaseURL = ""
+	if status.URLs == nil {
+		status.URLs = &v1alpha1.CatalogURLs{}
+	}
+	status.URLs.Base = ""
 	status.LastUnpacked = metav1.Time{}
 	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
 		Type:               v1alpha1.TypeServing,

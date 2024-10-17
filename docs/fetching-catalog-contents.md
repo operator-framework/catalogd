@@ -1,5 +1,5 @@
 # `ClusterCatalog` Interface
-`catalogd` serves catalog content via a catalog-specific, versioned HTTP(S) endpoint. Clients access catalog information via this API endpoint and a versioned reference of the desired format. Current support includes only a complete catalog download, indicated by the path "v1/all", for example `https://catalogd-catalogservice.olmv1-system.svc/catalogs/operatorhubio/api/vi/all` would receive the complete FBC for the catalog `operatorhubio`.
+`catalogd` serves catalog content via a catalog-specific, versioned HTTP(S) endpoint. Clients access catalog information via this API endpoint and a versioned reference of the desired format. Current support includes only a complete catalog download, indicated by the path "v1/all", for example if `status.urls.base` is `https://catalogd-service.olmv1-system.svc/catalogs/operatorhub/api` then `https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/vi/all` would receive the complete FBC for the catalog `operatorhubio`.
 
 
 ## Response Format
@@ -86,7 +86,7 @@ on self-signed certificate verification.
   status:
     .
     .
-    baseURL: https://catalogd-catalogservice.olmv1-system.svc/catalogs/operatorhubio/api/
+    baseURL: https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/
     resolvedSource:
       image:
         ref: quay.io/operatorhubio/catalog@sha256:e53267559addc85227c2a7901ca54b980bc900276fc24d3f4db0549cb38ecf76
@@ -100,7 +100,7 @@ the cluster, clients would combine `status.baseURL` with the desired API service
 
 For example, to receive the complete catalog data for the `operatorhubio` catalog indicated above, the client would append the service point designator `v1/all`, like:
 
-`https://catalogd-catalogservice.olmv1-system.svc/catalogs/operatorhubio/api/v1/all`.
+`https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/v1/all`.
 
 An example command to run a `Pod` to `curl` the catalog contents:
 ```sh

@@ -52,7 +52,7 @@ func (s LocalDir) Delete(catalog string) error {
 }
 
 func (s LocalDir) ContentURL(catalog string) string {
-	return fmt.Sprintf("%s%s/api", s.RootURL, catalog)
+	return s.RootURL.JoinPath(catalog, "api").String()
 }
 
 func (s LocalDir) StorageServerHandler() http.Handler {
