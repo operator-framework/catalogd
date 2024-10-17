@@ -147,15 +147,18 @@ type ClusterCatalogStatus struct {
 	//  type: Image
 	// +optional
 	ResolvedSource *ResolvedCatalogSource `json:"resolvedSource,omitempty"`
-	// contentURL is a cluster-internal URL from which on-cluster components
-	// can read the content of a catalog
+	// catalogURLs contains the URLs that can be used to access the catalog.
 	// +optional
-	ContentURL string `json:"contentURL,omitempty"`
-
+	URLs *CatalogURLs `json:"urls,omitempty"`
 	// lastUnpacked represents the time when the
 	// ClusterCatalog object was last unpacked successfully.
 	// +optional
 	LastUnpacked metav1.Time `json:"lastUnpacked,omitempty"`
+}
+
+type CatalogURLs struct {
+	// base is a required cluster-internal URL from which on-cluster components can access the API endpoint for this catalog
+	Base string `json:"base"`
 }
 
 // CatalogSource is a discriminated union of possible sources for a Catalog.

@@ -221,11 +221,6 @@ spec:
                   - type
                   type: object
                 type: array
-              contentURL:
-                description: |-
-                  contentURL is a cluster-internal URL from which on-cluster components
-                  can read the content of a catalog
-                type: string
               lastUnpacked:
                 description: |-
                   lastUnpacked represents the time when the
@@ -278,6 +273,17 @@ spec:
                 x-kubernetes-validations:
                 - message: source type 'Image' requires image field
                   rule: self.type == 'Image' && has(self.image)
+              urls:
+                description: catalogURLs contains the URLs that can be used to access
+                  the catalog.
+                properties:
+                  base:
+                    description: base is a required cluster-internal URL from which
+                      on-cluster components can access the API endpoint for this catalog
+                    type: string
+                required:
+                - base
+                type: object
             type: object
         required:
         - metadata
