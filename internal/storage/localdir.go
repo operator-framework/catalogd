@@ -24,8 +24,13 @@ type LocalDir struct {
 	RootURL *url.URL
 }
 
+const (
+	v1ApiPath = "api/v1"
+	v1ApiData = "all"
+)
+
 func (s LocalDir) Store(ctx context.Context, catalog string, fsys fs.FS) error {
-	fbcDir := filepath.Join(s.RootDir, catalog, "api", "v1")
+	fbcDir := filepath.Join(s.RootDir, catalog, v1ApiPath)
 	if err := os.MkdirAll(fbcDir, 0700); err != nil {
 		return err
 	}
@@ -43,7 +48,7 @@ func (s LocalDir) Store(ctx context.Context, catalog string, fsys fs.FS) error {
 	}); err != nil {
 		return fmt.Errorf("error walking FBC root: %w", err)
 	}
-	fbcFile := filepath.Join(fbcDir, "all")
+	fbcFile := filepath.Join(fbcDir, v1ApiData)
 	return os.Rename(tempFile.Name(), fbcFile)
 }
 
@@ -70,7 +75,7 @@ func (s LocalDir) StorageServerHandler() http.Handler {
 }
 
 func (s LocalDir) ContentExists(catalog string) bool {
-	file, err := os.Stat(filepath.Join(s.RootDir, catalog, "api", "v1", "all"))
+	file, err := os.Stat(filepath.Join(s.RootDir, catalog, v1ApiPath, v1ApiData))
 	if err != nil {
 		return false
 	}

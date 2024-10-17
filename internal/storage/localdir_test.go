@@ -69,14 +69,14 @@ var _ = Describe("LocalDir Storage Test", func() {
 			Expect(err).To(Not(HaveOccurred()))
 		})
 		It("should store the content in the RootDir correctly", func() {
-			fbcDir := filepath.Join(rootDir, catalog, "api", "v1")
-			fbcFile := filepath.Join(fbcDir, "all")
+			fbcDir := filepath.Join(rootDir, catalog, v1ApiPath)
+			fbcFile := filepath.Join(fbcDir, v1ApiData)
 			_, err := os.Stat(fbcFile)
 			Expect(err).To(Not(HaveOccurred()))
 
 			gotConfig, err := declcfg.LoadFS(ctx, unpackResultFS)
 			Expect(err).To(Not(HaveOccurred()))
-			storedConfig, err := declcfg.LoadFile(os.DirFS(fbcDir), "all")
+			storedConfig, err := declcfg.LoadFile(os.DirFS(fbcDir), v1ApiData)
 			Expect(err).To(Not(HaveOccurred()))
 			diff := cmp.Diff(gotConfig, storedConfig)
 			Expect(diff).To(Equal(""))
@@ -113,7 +113,7 @@ var _ = Describe("LocalDir Server Handler tests", func() {
 	BeforeEach(func() {
 		d, err := os.MkdirTemp(GinkgoT().TempDir(), "cache")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(os.MkdirAll(filepath.Join(d, "test-catalog", "api", "v1"), 0700)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(d, "test-catalog", v1ApiPath), 0700)).To(Succeed())
 		store = LocalDir{RootDir: d, RootURL: &url.URL{Path: urlPrefix}}
 		testServer = httptest.NewServer(store.StorageServerHandler())
 
@@ -147,12 +147,12 @@ var _ = Describe("LocalDir Server Handler tests", func() {
 	})
 	It("ignores accept-encoding for the path /catalogs/test-catalog/api/v1/all with size < 1400 bytes", func() {
 		expectedContent := []byte("bar")
-		Expect(os.WriteFile(filepath.Join(store.RootDir, "test-catalog", "api", "v1", "all"), expectedContent, 0600)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(store.RootDir, "test-catalog", v1ApiPath, v1ApiData), expectedContent, 0600)).To(Succeed())
 		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/api/v1/all"), expectedContent)
 	})
 	It("provides gzipped content for the path /catalogs/test-catalog/api/v1/all with size > 1400 bytes", func() {
 		expectedContent := []byte(testCompressableJSON)
-		Expect(os.WriteFile(filepath.Join(store.RootDir, "test-catalog", "api", "v1", "all"), expectedContent, 0600)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(store.RootDir, "test-catalog", v1ApiPath, v1ApiData), expectedContent, 0600)).To(Succeed())
 		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/api/v1/all"), expectedContent)
 	})
 	It("provides json-lines format for the served JSON catalog", func() {
@@ -165,7 +165,9 @@ var _ = Describe("LocalDir Server Handler tests", func() {
 
 		expectedContent, err := generateJSONLines([]byte(testCompressableJSON))
 		Expect(err).To(Not(HaveOccurred()))
-		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/api/v1/all"), []byte(expectedContent))
+		path, err := url.JoinPath(testServer.URL, urlPrefix, catalog, v1ApiPath, v1ApiData)
+		Expect(err).To(Not(HaveOccurred()))
+		expectFound(path, []byte(expectedContent))
 	})
 	It("provides json-lines format for the served YAML catalog", func() {
 		catalog := "test-catalog"
@@ -179,7 +181,9 @@ var _ = Describe("LocalDir Server Handler tests", func() {
 
 		expectedContent, err := generateJSONLines(yamlData)
 		Expect(err).To(Not(HaveOccurred()))
-		expectFound(fmt.Sprintf("%s/%s", testServer.URL, "/catalogs/test-catalog/api/v1/all"), []byte(expectedContent))
+		path, err := url.JoinPath(testServer.URL, urlPrefix, catalog, v1ApiPath, v1ApiData)
+		Expect(err).To(Not(HaveOccurred()))
+		expectFound(path, []byte(expectedContent))
 	})
 	AfterEach(func() {
 		testServer.Close()
