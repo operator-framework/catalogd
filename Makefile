@@ -219,7 +219,7 @@ kind-load: check-kind-cluster $(KIND) ## Load the built images onto the local cl
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 .PHONY: install
-install: check-kind-cluster build-container kind-load deploy wait ## Install local catalogd
+install: check-kind-cluster build-container kind-load deploy wait ## Install local catalogd to an existing cluster
 
 .PHONY: deploy
 deploy: export MANIFEST="./catalogd.yaml"
