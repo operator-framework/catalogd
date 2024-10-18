@@ -14,12 +14,12 @@ import (
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 )
 
-// LocalDir is a storage Instance. When Storing a new FBC contained in
+// LocalDirV1 is a storage Instance. When Storing a new FBC contained in
 // fs.FS, the content is first written to a temporary file, after which
 // it is copied to its final destination in RootDir/catalogName/. This is
 // done so that clients accessing the content stored in RootDir/catalogName have
 // atomic view of the content for a catalog.
-type LocalDir struct {
+type LocalDirV1 struct {
 	RootDir string
 	RootURL *url.URL
 }
@@ -29,7 +29,7 @@ const (
 	v1ApiData = "all"
 )
 
-func (s LocalDir) Store(ctx context.Context, catalog string, fsys fs.FS) error {
+func (s LocalDirV1) Store(ctx context.Context, catalog string, fsys fs.FS) error {
 	fbcDir := filepath.Join(s.RootDir, catalog, v1ApiPath)
 	if err := os.MkdirAll(fbcDir, 0700); err != nil {
 		return err
@@ -52,15 +52,15 @@ func (s LocalDir) Store(ctx context.Context, catalog string, fsys fs.FS) error {
 	return os.Rename(tempFile.Name(), fbcFile)
 }
 
-func (s LocalDir) Delete(catalog string) error {
+func (s LocalDirV1) Delete(catalog string) error {
 	return os.RemoveAll(filepath.Join(s.RootDir, catalog))
 }
 
-func (s LocalDir) ContentURL(catalog string) string {
-	return s.RootURL.JoinPath(catalog, "api").String()
+func (s LocalDirV1) BaseURL(catalog string) string {
+	return s.RootURL.JoinPath(catalog).String()
 }
 
-func (s LocalDir) StorageServerHandler() http.Handler {
+func (s LocalDirV1) StorageServerHandler() http.Handler {
 	mux := http.NewServeMux()
 	fsHandler := http.FileServer(http.FS(&filesOnlyFilesystem{os.DirFS(s.RootDir)}))
 	spHandler := http.StripPrefix(s.RootURL.Path, fsHandler)
@@ -74,7 +74,7 @@ func (s LocalDir) StorageServerHandler() http.Handler {
 	return mux
 }
 
-func (s LocalDir) ContentExists(catalog string) bool {
+func (s LocalDirV1) ContentExists(catalog string) bool {
 	file, err := os.Stat(filepath.Join(s.RootDir, catalog, v1ApiPath, v1ApiData))
 	if err != nil {
 		return false

@@ -79,7 +79,7 @@ Procedure steps marked with an asterisk (`*`) are likely to change with future A
           Ref:                           quay.io/operatorhubio/catalog@sha256:82be554b15ff246d8cc428f8d2f4cf5857c02ce3225d95d92a769ea3095e1fc7
         Type:                            Image
       Urls:
-        Base:  https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api
+        Base:  https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio
     Events:    <none>
    ```
 

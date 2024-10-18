@@ -1,5 +1,5 @@
 # `ClusterCatalog` Interface
-`catalogd` serves catalog content via a catalog-specific, versioned HTTP(S) endpoint. Clients access catalog information via this API endpoint and a versioned reference of the desired format. Current support includes only a complete catalog download, indicated by the path "v1/all", for example if `status.urls.base` is `https://catalogd-service.olmv1-system.svc/catalogs/operatorhub/api` then `https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/vi/all` would receive the complete FBC for the catalog `operatorhubio`.
+`catalogd` serves catalog content via a catalog-specific, versioned HTTP(S) endpoint. Clients access catalog information via this API endpoint and a versioned reference of the desired format. Current support includes only a complete catalog download, indicated by the path "api/v1/all", for example if `status.urls.base` is `https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio` then `https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/vi/all` would receive the complete FBC for the catalog `operatorhubio`.
 
 
 ## Response Format
@@ -80,13 +80,14 @@ For example purposes we make the following assumption:
 For local development, consider skipping TLS verification, such as `curl -k`, or reference external material
 on self-signed certificate verification.
 
-`ClusterCatalog` CRs have a status.baseURL field which identifies the catalog-specific API to access the catalog content:
+`ClusterCatalog` CRs have a `status.urls.base` field which identifies the catalog-specific API to access the catalog content:
 
 ```yaml
   status:
     .
     .
-    baseURL: https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/
+    urls:
+        base: https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio
     resolvedSource:
       image:
         ref: quay.io/operatorhubio/catalog@sha256:e53267559addc85227c2a7901ca54b980bc900276fc24d3f4db0549cb38ecf76
@@ -96,9 +97,9 @@ on self-signed certificate verification.
 ## On cluster
 
 When making a request for the complete contents of the `operatorhubio` `ClusterCatalog` from within
-the cluster, clients would combine `status.baseURL` with the desired API service and issue an HTTP GET request for the URL.
+the cluster, clients would combine `status.urls.base` with the desired API service and issue an HTTP GET request for the URL.
 
-For example, to receive the complete catalog data for the `operatorhubio` catalog indicated above, the client would append the service point designator `v1/all`, like:
+For example, to receive the complete catalog data for the `operatorhubio` catalog indicated above, the client would append the service point designator `api/v1/all`, like:
 
 `https://catalogd-service.olmv1-system.svc/catalogs/operatorhubio/api/v1/all`.
 

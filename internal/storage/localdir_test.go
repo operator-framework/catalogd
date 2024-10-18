@@ -56,7 +56,7 @@ var _ = Describe("LocalDir Storage Test", func() {
 		rootDir = d
 
 		baseURL = &url.URL{Scheme: "http", Host: "test-addr", Path: urlPrefix}
-		store = LocalDir{RootDir: rootDir, RootURL: baseURL}
+		store = LocalDirV1{RootDir: rootDir, RootURL: baseURL}
 		unpackResultFS = &fstest.MapFS{
 			"bundle.yaml":  &fstest.MapFile{Data: []byte(testBundle), Mode: os.ModePerm},
 			"package.yaml": &fstest.MapFile{Data: []byte(testPackage), Mode: os.ModePerm},
@@ -82,7 +82,7 @@ var _ = Describe("LocalDir Storage Test", func() {
 			Expect(diff).To(Equal(""))
 		})
 		It("should form the content URL correctly", func() {
-			Expect(store.ContentURL(catalog)).To(Equal(baseURL.JoinPath(catalog, "api").String()))
+			Expect(store.BaseURL(catalog)).To(Equal(baseURL.JoinPath(catalog).String()))
 		})
 		It("should report content exists", func() {
 			Expect(store.ContentExists(catalog)).To(BeTrue())
@@ -108,13 +108,13 @@ var _ = Describe("LocalDir Storage Test", func() {
 var _ = Describe("LocalDir Server Handler tests", func() {
 	var (
 		testServer *httptest.Server
-		store      LocalDir
+		store      LocalDirV1
 	)
 	BeforeEach(func() {
 		d, err := os.MkdirTemp(GinkgoT().TempDir(), "cache")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(os.MkdirAll(filepath.Join(d, "test-catalog", v1ApiPath), 0700)).To(Succeed())
-		store = LocalDir{RootDir: d, RootURL: &url.URL{Path: urlPrefix}}
+		store = LocalDirV1{RootDir: d, RootURL: &url.URL{Path: urlPrefix}}
 		testServer = httptest.NewServer(store.StorageServerHandler())
 
 	})
