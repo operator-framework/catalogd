@@ -102,7 +102,7 @@ FOCUS := $(if $(TEST),-v -focus "$(TEST)")
 ifeq ($(origin E2E_FLAGS), undefined)
 E2E_FLAGS :=
 endif
-test-e2e: check-kind-cluster $(GINKGO) ## Run the e2e tests
+test-e2e: check-kind-cluster $(GINKGO) ## Run the e2e tests on existing cluster
 	$(GINKGO) $(E2E_FLAGS) -trace -vv $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME := catalogd-e2e
