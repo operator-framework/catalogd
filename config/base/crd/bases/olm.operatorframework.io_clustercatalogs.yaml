@@ -118,6 +118,11 @@ spec:
                     required:
                     - ref
                     type: object
+                    x-kubernetes-validations:
+                    - message: cannot specify PollInterval while using digest-based
+                        image
+                      rule: '!has(self.pollInterval) || (self.ref.find(''@sha256:'')
+                        == "")'
                   type:
                     description: |-
                       type is a required reference to the type of source the catalog is sourced from.
@@ -134,14 +139,11 @@ spec:
                 type: object
                 x-kubernetes-validations:
                 - message: source type 'Image' requires image field
-                  rule: self.type == 'Image' && has(self.image)
+                  rule: 'has(self.type) && self.type == ''Image'' ? has(self.image)
+                    : !has(self.image)'
             required:
             - source
             type: object
-            x-kubernetes-validations:
-            - message: cannot specify PollInterval while using digest-based image
-              rule: '!has(self.source.image.pollInterval) || (self.source.image.ref.find(''@sha256:'')
-                == "")'
           status:
             description: ClusterCatalogStatus defines the observed state of ClusterCatalog
             properties:
@@ -243,17 +245,11 @@ spec:
                     description: image is a field containing resolution information
                       for a catalog sourced from an image.
                     properties:
-                      lastSuccessfulPollAttempt:
-                        description: lastSuccessfulPollAttempt is the time when the
-                          resolved source was last successfully polled for new content.
-                        format: date-time
-                        type: string
                       ref:
                         description: ref contains the resolved sha256 image ref containing
                           Catalog contents.
                         type: string
                     required:
-                    - lastSuccessfulPollAttempt
                     - ref
                     type: object
                   type:

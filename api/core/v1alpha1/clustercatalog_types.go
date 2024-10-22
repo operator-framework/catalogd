@@ -74,7 +74,6 @@ type ClusterCatalogList struct {
 }
 
 // ClusterCatalogSpec defines the desired state of ClusterCatalog
-// +kubebuilder:validation:XValidation:rule="!has(self.source.image.pollInterval) || (self.source.image.ref.find('@sha256:') == \"\")",message="cannot specify PollInterval while using digest-based image"
 type ClusterCatalogSpec struct {
 	// source is a required field that allows the user to define the source of a Catalog that contains catalog metadata in the File-Based Catalog (FBC) format.
 	//
@@ -86,6 +85,7 @@ type ClusterCatalogSpec struct {
 	//      ref: quay.io/operatorhubio/catalog:latest
 	//
 	// For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
+	// +kubebuilder:validation:Required
 	Source CatalogSource `json:"source"`
 
 	// priority is an optional field that allows the user to define a priority for a ClusterCatalog.
@@ -168,7 +168,7 @@ type ClusterCatalogURLs struct {
 // CatalogSource is a discriminated union of possible sources for a Catalog.
 // CatalogSource contains the sourcing information for a Catalog
 // +union
-// +kubebuilder:validation:XValidation:rule="self.type == 'Image' && has(self.image)",message="source type 'Image' requires image field"
+// +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'Image' ? has(self.image) : !has(self.image)",message="source type 'Image' requires image field"
 type CatalogSource struct {
 	// type is a required reference to the type of source the catalog is sourced from.
 	//
@@ -208,17 +208,18 @@ type ResolvedCatalogSource struct {
 // ResolvedImageSource provides information about the resolved source of a Catalog sourced from an image.
 type ResolvedImageSource struct {
 	// ref contains the resolved sha256 image ref containing Catalog contents.
+	// +kubebuilder:validation:Required
 	Ref string `json:"ref"`
-	// lastSuccessfulPollAttempt is the time when the resolved source was last successfully polled for new content.
-	LastSuccessfulPollAttempt metav1.Time `json:"lastSuccessfulPollAttempt"`
 }
 
 // ImageSource enables users to define the information required for sourcing a Catalog from an OCI image
+// +kubebuilder:validation:XValidation:rule="!has(self.pollInterval) || (self.ref.find('@sha256:') == \"\")",message="cannot specify PollInterval while using digest-based image"
 type ImageSource struct {
 	// ref is a required field that allows the user to define the reference to a container image containing Catalog contents.
 	// Examples:
 	//   ref: quay.io/operatorhubio/catalog:latest # image reference
 	//   ref: quay.io/operatorhubio/catalog@sha256:c7392b4be033da629f9d665fec30f6901de51ce3adebeff0af579f311ee5cf1b # image reference with sha256 digest
+	// +kubebuilder:validation:Required
 	Ref string `json:"ref"`
 	// pollInterval is an optional field that allows the user to set the interval at which the image source should be polled for new content.
 	// It must be specified as a duration.
