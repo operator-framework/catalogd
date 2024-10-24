@@ -49,36 +49,56 @@ spec:
           metadata:
             type: object
           spec:
-            description: ClusterCatalogSpec defines the desired state of ClusterCatalog
+            description: |-
+              spec is the desired state of the ClusterCatalog. The controller will work
+              to ensure that the desired catalog is unpacked and served over the catalog content HTTP server.
             properties:
-              availability:
-                default: Enabled
+              availabilityMode:
+                default: Available
                 description: |-
-                  Availability is an optional field that allows users to define whether the ClusterCatalog is utilized by the operator-controller.
+                  availabilityMode allows users to define the of the ClusterCatalog.
+                  availabilityMode is optional.
 
-                  Allowed values are : ["Enabled", "Disabled"].
-                  If set to "Enabled", the catalog will be used for updates, serving contents, and package installations.
+                  Allowed values are : ["Available", "Unavailable"].
 
-                  If set to "Disabled", catalogd will stop serving the catalog and the cached data will be removed.
+                  When set to "Available", the catalog contents will be unpacked and served over the catalog content HTTP server.
+                  Setting the availabilityMode to "Available" tells clients that they should consider this ClusterCatalog
+                  and its contents as usable.
 
-                  If unspecified, the default value is "Enabled"
+                  When set to "Unavailable", the catalog contents will no longer be served over the catalog content HTTP server and
+                  all the content will no longer cached.
+                  When set to this availabilityMode it should be interpreted the same as the ClusterCatalog not existing.
+                  Setting the availabilityMode to "Unavailable" can be useful in scenarios where a user may not want
+                  to delete the ClusterCatalog all together, but would still like it to be treated as if it doesn't exist.
+
+                  When unspecified, the default value is "Available".
                 enum:
-                - Disabled
-                - Enabled
+                - Unavailable
+                - Available
                 type: string
               priority:
                 default: 0
                 description: |-
-                  priority is an optional field that allows the user to define a priority for a ClusterCatalog.
+                  priority allows the user to define a priority for a ClusterCatalog.
+                  priority is optional.
+
                   A ClusterCatalog's priority is used by clients as a tie-breaker between ClusterCatalogs that meet the client's requirements.
+                  It is up to clients to decide how to handle scenarios where multiple ClusterCatalogs with the same priority meet
                   For example, in the case where multiple ClusterCatalogs provide the same bundle.
                   A higher number means higher priority. Negative numbers are also accepted.
+
                   When omitted, the default priority is 0.
                 format: int32
                 type: integer
               source:
                 description: |-
-                  source is a required field that allows the user to define the source of a Catalog that contains catalog metadata in the File-Based Catalog (FBC) format.
+                  source allows a user to define the source of a catalog.
+                  A "catalog" contains information on content that can be installed on a cluster.
+                  Providing a catalog source makes the contents of the catalog discoverable and usable by
+                  other on-cluster components.
+                  The catalog source must contain catalog metadata in the File-Based Catalog (FBC) format.
+                  For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs.
+                  source is a required field.
 
                   Below is a minimal example of a ClusterCatalogSpec that sources a catalog from an image:
 
@@ -86,8 +106,6 @@ spec:
                      type: Image
                      image:
                        ref: quay.io/operatorhubio/catalog:latest
-
-                  For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
                 properties:
                   image:
                     description: image is used to configure how catalog contents are
@@ -95,19 +113,13 @@ spec:
                       is set to "Image" and must be the only field defined for this
                       type.
                     properties:
-                      pollInterval:
+                      pollIntervalMinutes:
                         description: |-
-                          pollInterval is an optional field that allows the user to set the interval at which the image source should be polled for new content.
-                          It must be specified as a duration.
-                          It must not be specified for a catalog image referenced by a sha256 digest.
-                          Examples:
-                            pollInterval: 1h # poll the image source every hour
-                            pollInterval: 30m # poll the image source every 30 minutes
-                            pollInterval: 1h30m # poll the image source every 1 hour and 30 minutes
+                          pollIntervalMinutes allows the user to set the interval, in minutes, at which the image source should be polled for new content.
+                          pollIntervalMinutes is optional.
 
                           When omitted, the image will not be polled for new content.
-                        format: duration
-                        type: string
+                        type: integer
                       ref:
                         description: |-
                           ref is a required field that allows the user to define the reference to a container image containing Catalog contents.
@@ -118,6 +130,11 @@ spec:
                     required:
                     - ref
                     type: object
+                    x-kubernetes-validations:
+                    - message: cannot specify PollInterval while using digest-based
+                        image
+                      rule: '!has(self.pollInterval) || (self.ref.find(''@sha256:'')
+                        == "")'
                   type:
                     description: |-
                       type is a required reference to the type of source the catalog is sourced from.
@@ -133,28 +150,23 @@ spec:
                 - type
                 type: object
                 x-kubernetes-validations:
-                - message: source type 'Image' requires image field
-                  rule: self.type == 'Image' && has(self.image)
+                - message: image is required when source type is Image, and forbidden
+                    otherwise
+                  rule: 'has(self.type) && self.type == ''Image'' ? has(self.image)
+                    : !has(self.image)'
             required:
             - source
             type: object
-            x-kubernetes-validations:
-            - message: cannot specify PollInterval while using digest-based image
-              rule: '!has(self.source.image.pollInterval) || (self.source.image.ref.find(''@sha256:'')
-                == "")'
           status:
-            description: ClusterCatalogStatus defines the observed state of ClusterCatalog
+            description: |-
+              status contains information about the state of the ClusterCatalog such as:
+                - Whether or not the catalog contents are being served via the catalog content HTTP server
+                - Whether or not the ClusterCatalog is progressing to a new state
+                - A reference to the source from which the catalog contents were retrieved
             properties:
               conditions:
                 description: |-
                   conditions is a representation of the current state for this ClusterCatalog.
-                  The status is represented by a set of "conditions".
-
-                  Each condition is generally structured in the following format:
-                    - Type: a string representation of the condition type. More or less the condition "name".
-                    - Status: a string representation of the state of the condition. Can be one of ["True", "False", "Unknown"].
-                    - Reason: a string representation of the reason for the current state of the condition. Typically useful for building automation around particular Type+Reason combinations.
-                    - Message: a human-readable message that further elaborates on the state of the condition.
 
                   The current set of condition types are:
                     - "Serving", which represents whether or not the contents of the catalog are being served via the HTTP(S) web server.
@@ -221,6 +233,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               lastUnpacked:
                 description: |-
                   lastUnpacked represents the time when the
@@ -243,22 +258,17 @@ spec:
                     description: image is a field containing resolution information
                       for a catalog sourced from an image.
                     properties:
-                      lastSuccessfulPollAttempt:
-                        description: lastSuccessfulPollAttempt is the time when the
-                          resolved source was last successfully polled for new content.
-                        format: date-time
-                        type: string
                       ref:
                         description: ref contains the resolved sha256 image ref containing
                           Catalog contents.
                         type: string
                     required:
-                    - lastSuccessfulPollAttempt
                     - ref
                     type: object
                   type:
                     description: |-
                       type is a reference to the type of source the catalog is sourced from.
+                      type is required.
 
                       It will be set to one of the following values: ["Image"].
 

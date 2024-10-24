@@ -21,8 +21,10 @@ import (
 )
 
 // SourceType defines the type of source used for catalogs.
-// +enum
 type SourceType string
+
+// AvailabilityMode defines the availability of the catalog
+type AvailabilityMode string
 
 const (
 	SourceTypeImage SourceType = "Image"
@@ -42,8 +44,8 @@ const (
 
 	MetadataNameLabel = "olm.operatorframework.io/metadata.name"
 
-	AvailabilityEnabled  = "Enabled"
-	AvailabilityDisabled = "Disabled"
+	AvailabilityModeAvailable   AvailabilityMode = "Available"
+	AvailabilityModeUnavailable AvailabilityMode = "Unavailable"
 )
 
 //+kubebuilder:object:root=true
@@ -57,9 +59,21 @@ const (
 // For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
 type ClusterCatalog struct {
 	metav1.TypeMeta   `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata"`
 
+	// spec is the desired state of the ClusterCatalog. The controller will work
+	// to ensure that the desired catalog is unpacked and served over the catalog content HTTP server.
+	// +kubebuilder:validation:Required
 	Spec   ClusterCatalogSpec   `json:"spec"`
+
+	// status contains information about the state of the ClusterCatalog such as:
+    //   - Whether or not the catalog contents are being served via the catalog content HTTP server
+    //   - Whether or not the ClusterCatalog is progressing to a new state
+    //   - A reference to the source from which the catalog contents were retrieved
+	// +optional
 	Status ClusterCatalogStatus `json:"status,omitempty"`
 }
 
@@ -68,16 +82,25 @@ type ClusterCatalog struct {
 // ClusterCatalogList contains a list of ClusterCatalog
 type ClusterCatalogList struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ListMeta `json:"metadata"`
 
+    // items is a list of ClusterCatalogs
 	Items []ClusterCatalog `json:"items"`
 }
 
 // ClusterCatalogSpec defines the desired state of ClusterCatalog
-// +kubebuilder:validation:XValidation:rule="!has(self.source.image.pollInterval) || (self.source.image.ref.find('@sha256:') == \"\")",message="cannot specify PollInterval while using digest-based image"
 type ClusterCatalogSpec struct {
-	// source is a required field that allows the user to define the source of a Catalog that contains catalog metadata in the File-Based Catalog (FBC) format.
-	//
+    // source allows a user to define the source of a catalog.
+    // A "catalog" contains information on content that can be installed on a cluster.
+    // Providing a catalog source makes the contents of the catalog discoverable and usable by
+    // other on-cluster components.
+    // The catalog source must contain catalog metadata in the File-Based Catalog (FBC) format.
+    // For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs.
+    // source is a required field.
+    //
 	// Below is a minimal example of a ClusterCatalogSpec that sources a catalog from an image:
 	//
 	//  source:
@@ -85,43 +108,49 @@ type ClusterCatalogSpec struct {
 	//    image:
 	//      ref: quay.io/operatorhubio/catalog:latest
 	//
-	// For more information on FBC, see https://olm.operatorframework.io/docs/reference/file-based-catalogs/#docs
+	// +kubebuilder:validation:Required
 	Source CatalogSource `json:"source"`
 
-	// priority is an optional field that allows the user to define a priority for a ClusterCatalog.
+	// priority allows the user to define a priority for a ClusterCatalog.
+    // priority is optional.
+    //
 	// A ClusterCatalog's priority is used by clients as a tie-breaker between ClusterCatalogs that meet the client's requirements.
+    // It is up to clients to decide how to handle scenarios where multiple ClusterCatalogs with the same priority meet 
 	// For example, in the case where multiple ClusterCatalogs provide the same bundle.
 	// A higher number means higher priority. Negative numbers are also accepted.
+    //
 	// When omitted, the default priority is 0.
+    //
 	// +kubebuilder:default:=0
 	// +optional
 	Priority int32 `json:"priority"`
 
-	// Availability is an optional field that allows users to define whether the ClusterCatalog is utilized by the operator-controller.
+	// availabilityMode allows users to define the of the ClusterCatalog.
+    // availabilityMode is optional.
 	//
-	// Allowed values are : ["Enabled", "Disabled"].
-	// If set to "Enabled", the catalog will be used for updates, serving contents, and package installations.
+	// Allowed values are : ["Available", "Unavailable"].
+    //
+	// When set to "Available", the catalog contents will be unpacked and served over the catalog content HTTP server.
+    // Setting the availabilityMode to "Available" tells clients that they should consider this ClusterCatalog
+    // and its contents as usable.
 	//
-	// If set to "Disabled", catalogd will stop serving the catalog and the cached data will be removed.
+	// When set to "Unavailable", the catalog contents will no longer be served over the catalog content HTTP server and
+    // all the content will no longer cached.
+    // When set to this availabilityMode it should be interpreted the same as the ClusterCatalog not existing.
+    // Setting the availabilityMode to "Unavailable" can be useful in scenarios where a user may not want
+    // to delete the ClusterCatalog all together, but would still like it to be treated as if it doesn't exist.
 	//
-	// If unspecified, the default value is "Enabled"
+	// When unspecified, the default value is "Available".
 	//
-	// +kubebuilder:validation:Enum="Disabled";"Enabled"
-	// +kubebuilder:default="Enabled"
+	// +kubebuilder:validation:Enum="Unavailable";"Available"
+	// +kubebuilder:default="Available"
 	// +optional
-	Availability string `json:"availability,omitempty"`
+	AvailabilityMode AvailabilityMode `json:"availabilityMode,omitempty"`
 }
 
 // ClusterCatalogStatus defines the observed state of ClusterCatalog
 type ClusterCatalogStatus struct {
 	// conditions is a representation of the current state for this ClusterCatalog.
-	// The status is represented by a set of "conditions".
-	//
-	// Each condition is generally structured in the following format:
-	//   - Type: a string representation of the condition type. More or less the condition "name".
-	//   - Status: a string representation of the state of the condition. Can be one of ["True", "False", "Unknown"].
-	//   - Reason: a string representation of the reason for the current state of the condition. Typically useful for building automation around particular Type+Reason combinations.
-	//   - Message: a human-readable message that further elaborates on the state of the condition.
 	//
 	// The current set of condition types are:
 	//   - "Serving", which represents whether or not the contents of the catalog are being served via the HTTP(S) web server.
@@ -133,7 +162,9 @@ type ClusterCatalogStatus struct {
 	//   - "Retrying", this reason is set on the "Progressing" condition when the ClusterCatalog controller has encountered an error that might be resolvable on subsequent reconciliation attempts.
 	//   - "Available", this reason is set on the "Serving" condition when the contents of the ClusterCatalog are being served via an endpoint on the HTTP(S) web server.
 	//   - "Unavailable", this reason is set on the "Serving" condition when there is not an endpoint on the HTTP(S) web server that is serving the contents of the ClusterCatalog.
-	//
+    //
+	// +listType=map
+	// +listMapKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 	// resolvedSource contains information about the resolved source based on the source type.
@@ -168,7 +199,7 @@ type ClusterCatalogURLs struct {
 // CatalogSource is a discriminated union of possible sources for a Catalog.
 // CatalogSource contains the sourcing information for a Catalog
 // +union
-// +kubebuilder:validation:XValidation:rule="self.type == 'Image' && has(self.image)",message="source type 'Image' requires image field"
+// +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'Image' ? has(self.image) : !has(self.image)",message="image is required when source type is Image, and forbidden otherwise"
 type CatalogSource struct {
 	// type is a required reference to the type of source the catalog is sourced from.
 	//
@@ -192,6 +223,7 @@ type CatalogSource struct {
 // +kubebuilder:validation:XValidation:rule="self.type == 'Image' && has(self.image)",message="source type 'Image' requires image field"
 type ResolvedCatalogSource struct {
 	// type is a reference to the type of source the catalog is sourced from.
+    // type is required.
 	//
 	// It will be set to one of the following values: ["Image"].
 	//
@@ -208,30 +240,27 @@ type ResolvedCatalogSource struct {
 // ResolvedImageSource provides information about the resolved source of a Catalog sourced from an image.
 type ResolvedImageSource struct {
 	// ref contains the resolved sha256 image ref containing Catalog contents.
+	// +kubebuilder:validation:Required
 	Ref string `json:"ref"`
-	// lastSuccessfulPollAttempt is the time when the resolved source was last successfully polled for new content.
-	LastSuccessfulPollAttempt metav1.Time `json:"lastSuccessfulPollAttempt"`
 }
 
 // ImageSource enables users to define the information required for sourcing a Catalog from an OCI image
+// +kubebuilder:validation:XValidation:rule="!has(self.pollInterval) || (self.ref.find('@sha256:') == \"\")",message="cannot specify PollInterval while using digest-based image"
 type ImageSource struct {
 	// ref is a required field that allows the user to define the reference to a container image containing Catalog contents.
 	// Examples:
 	//   ref: quay.io/operatorhubio/catalog:latest # image reference
 	//   ref: quay.io/operatorhubio/catalog@sha256:c7392b4be033da629f9d665fec30f6901de51ce3adebeff0af579f311ee5cf1b # image reference with sha256 digest
+	// +kubebuilder:validation:Required
 	Ref string `json:"ref"`
-	// pollInterval is an optional field that allows the user to set the interval at which the image source should be polled for new content.
-	// It must be specified as a duration.
-	// It must not be specified for a catalog image referenced by a sha256 digest.
-	// Examples:
-	//   pollInterval: 1h # poll the image source every hour
-	//   pollInterval: 30m # poll the image source every 30 minutes
-	//   pollInterval: 1h30m # poll the image source every 1 hour and 30 minutes
+
+	// pollIntervalMinutes allows the user to set the interval, in minutes, at which the image source should be polled for new content.
+    // pollIntervalMinutes is optional.
 	//
 	// When omitted, the image will not be polled for new content.
-	// +kubebuilder:validation:Format:=duration
+    // +kubebuilder:validation:Minimum:1
 	// +optional
-	PollInterval *metav1.Duration `json:"pollInterval,omitempty"`
+	PollIntervalMinutes *int `json:"pollIntervalMinutes,omitempty"`
 }
 
 func init() {
