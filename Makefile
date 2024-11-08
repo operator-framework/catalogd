@@ -271,6 +271,6 @@ demo-update:
 .PHONY: check-cluster
 check-cluster:
 	if ! kubectl config current-context >/dev/null 2>&1; then \
-		echo "Error: Could not get current Kubernetes context. Use 'run' or 'e2e' targets first."; \
+		echo "Error: Could not get current Kubernetes context. Maybe use 'run' or 'e2e' targets first?"; \
 		exit 1; \
 	fi
