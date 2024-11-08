@@ -27,7 +27,7 @@ const (
 )
 
 // catalogImageRef returns the image reference for the test catalog image, defaulting to the value of the environment
-// variable TEST_CATALOG_IMAGE if set, falling back to docker-registry.catalogdv1-e2e.svc:5000/test-catalog:e2e otherwise.
+// variable TEST_CATALOG_IMAGE if set, falling back to docker-registry.catalogd-e2e.svc:5000/test-catalog:e2e otherwise.
 func catalogImageRef() string {
 	if s := os.Getenv(catalogRefEnvVar); s != "" {
 		return s
