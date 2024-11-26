@@ -133,10 +133,10 @@ verify: tidy fmt vet generate ## Verify the current code generation and lint
 
 .PHONY: verify-crd-compatibility
 CRD_DIFF_ORIGINAL_REF := main
-CRD_DIFF_UPDATED_REF  := HEAD
+CRD_DIFF_UPDATED_SOURCE := file://config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml
 CRD_DIFF_CONFIG := crd-diff-config.yaml
 verify-crd-compatibility: $(CRD_DIFF)
-	$(CRD_DIFF) --config="${CRD_DIFF_CONFIG}" "git://${CRD_DIFF_ORIGINAL_REF}?path=config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml" "git://${CRD_DIFF_UPDATED_REF}?path=config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml"
+	$(CRD_DIFF) --config="${CRD_DIFF_CONFIG}" "git://${CRD_DIFF_ORIGINAL_REF}?path=config/base/crd/bases/olm.operatorframework.io_clustercatalogs.yaml" ${CRD_DIFF_UPDATED_SOURCE}
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT) ## Run golangci linter.
