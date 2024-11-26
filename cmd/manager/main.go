@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -83,6 +84,7 @@ func init() {
 func main() {
 	var (
 		metricsAddr          string
+		disableMetricsTLS    bool
 		enableLeaderElection bool
 		probeAddr            string
 		pprofAddr            string
@@ -98,7 +100,10 @@ func main() {
 		caCertDir            string
 		globalPullSecret     string
 	)
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
+		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
+	flag.BoolVar(&disableMetricsTLS, "disable-metrics-tls", false,
+		"Disables TLS for the metrics endpoint, making it insecure. Use with caution. Defaults to secure (false).")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&pprofAddr, "pprof-bind-address", "0", "The address the pprof endpoint binds to. an empty string or 0 disables pprof")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -185,12 +190,44 @@ func main() {
 		}
 	}
 
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   metricsAddr,
+		SecureServing: !disableMetricsTLS,
+	}
+
+	if !disableMetricsTLS {
+		setupLog.Info("Metrics endpoint will be protected by TLS.")
+		// FilterProvider is used to protect the metrics endpoint with authn/authz.
+		// These configurations ensure that only authorized users and service accounts
+		// can access the metrics endpoint.
+		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+
+		// If the certificate files are provided, the metrics server will use them to serve the metrics endpoint.
+		// Otherwise, the metrics server will use the default certificate provided by the controller-runtime which
+		// is not recommended for production use.
+		if len(certFile) > 0 && len(keyFile) > 0 {
+			setupLog.Info("Using provided TLS certificate and key files for the metrics server.",
+				"certFile", certFile, "keyFile", keyFile)
+			// If the certificate files change, the watcher will reload them.
+			var err error
+			cw, err = certwatcher.New(certFile, keyFile)
+			if err != nil {
+				log.Fatalf("Failed to initialize certificate watcher: %v", err)
+			}
+			metricsServerOptions.TLSOpts = append(metricsServerOptions.TLSOpts, func(config *tls.Config) {
+				config.GetCertificate = cw.GetCertificate
+			})
+		} else {
+			setupLog.Info("WARNING: No certificate files provided. (not recommended for production).")
+		}
+	} else {
+		setupLog.Info("WARNING: Metrics endpoint is not protected by TLS. Ensure this is intentional.")
+	}
+
 	// Create manager
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
-		},
+		Scheme:                 scheme,
+		Metrics:                metricsServerOptions,
 		PprofBindAddress:       pprofAddr,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
