@@ -21,28 +21,46 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/containers/image/v5/types"
+	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	apimachineryrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/metadata"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/textlogger"
 	ctrl "sigs.k8s.io/controller-runtime"
+	crcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	catalogdv1 "github.com/operator-framework/catalogd/api/v1"
+	corecontrollers "github.com/operator-framework/catalogd/internal/controllers/core"
 	"github.com/operator-framework/catalogd/internal/features"
+	"github.com/operator-framework/catalogd/internal/garbagecollection"
+	"github.com/operator-framework/catalogd/internal/serverutil"
 	"github.com/operator-framework/catalogd/internal/source"
+	"github.com/operator-framework/catalogd/internal/storage"
 	"github.com/operator-framework/catalogd/internal/version"
+	"github.com/operator-framework/catalogd/internal/webhook"
 )
 
 var (
@@ -234,4 +252,206 @@ func run(cfg *config) error {
 	}
 
 	return nil
+}
+
+func validateTLSConfig(cfg *config) error {
+	if (cfg.certFile != "" && cfg.keyFile == "") || (cfg.certFile == "" && cfg.keyFile != "") {
+		return fmt.Errorf("tls-cert and tls-key flags must be used together")
+	}
+
+	if cfg.metricsAddr != "" && cfg.certFile == "" && cfg.keyFile == "" {
+		return fmt.Errorf("metrics-bind-address requires tls-cert and tls-key flags")
+	}
+
+	if cfg.certFile != "" && cfg.keyFile != "" && cfg.metricsAddr == "" {
+		cfg.metricsAddr = ":7443"
+	}
+
+	return nil
+}
+
+func configureMetricsServer(cfg *config, tlsOpts func(*tls.Config)) metricsserver.Options {
+	options := metricsserver.Options{}
+
+	if cfg.certFile != "" && cfg.keyFile != "" {
+		setupLog.Info("Starting metrics server with TLS enabled",
+			"addr", cfg.metricsAddr,
+			"tls-cert", cfg.certFile,
+			"tls-key", cfg.keyFile)
+
+		options.BindAddress = cfg.metricsAddr
+		options.SecureServing = true
+		options.FilterProvider = filters.WithAuthenticationAndAuthorization
+		options.TLSOpts = append(options.TLSOpts, tlsOpts)
+	} else {
+		options.BindAddress = "0"
+		setupLog.Info("WARNING: Metrics Server is disabled. " +
+			"Metrics will not be served since the TLS certificate and key file are not provided.")
+	}
+
+	return options
+}
+
+func configureCacheOptions(globalPullSecretKey *k8stypes.NamespacedName) crcache.Options {
+	options := crcache.Options{
+		ByObject: map[client.Object]crcache.ByObject{},
+	}
+
+	if globalPullSecretKey != nil {
+		options.ByObject[&corev1.Secret{}] = crcache.ByObject{
+			Namespaces: map[string]crcache.Config{
+				globalPullSecretKey.Namespace: {
+					LabelSelector: k8slabels.Everything(),
+					FieldSelector: fields.SelectorFromSet(map[string]string{
+						"metadata.name": globalPullSecretKey.Name,
+					}),
+				},
+			},
+		}
+	}
+
+	return options
+}
+
+func createManager(k8sCfg *rest.Config, cfg *config, webhookServer crwebhook.Server,
+	metricsOpts metricsserver.Options, cacheOpts crcache.Options) (ctrl.Manager, error) {
+	return ctrl.NewManager(k8sCfg, ctrl.Options{
+		Scheme:                 scheme,
+		Metrics:                metricsOpts,
+		PprofBindAddress:       cfg.pprofAddr,
+		HealthProbeBindAddress: cfg.probeAddr,
+		LeaderElection:         cfg.enableLeaderElection,
+		LeaderElectionID:       "catalogd-operator-lock",
+		WebhookServer:          webhookServer,
+		Cache:                  cacheOpts,
+	})
+}
+
+func initializeCacheDirectories(cacheDir string) error {
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		return fmt.Errorf("unable to create cache directory: %w", err)
+	}
+
+	unpackCacheBasePath := filepath.Join(cacheDir, source.UnpackCacheDir)
+	if err := os.MkdirAll(unpackCacheBasePath, 0770); err != nil {
+		return fmt.Errorf("unable to create cache directory for unpacking: %w", err)
+	}
+
+	return nil
+}
+
+func configureUnpacker(cacheDir, caCertDir, authFilePath string) *source.ContainersImageRegistry {
+	unpackCacheBasePath := filepath.Join(cacheDir, source.UnpackCacheDir)
+	return &source.ContainersImageRegistry{
+		BaseCachePath: unpackCacheBasePath,
+		SourceContextFunc: func(logger logr.Logger) (*types.SystemContext, error) {
+			srcContext := &types.SystemContext{
+				DockerCertPath: caCertDir,
+				OCICertPath:    caCertDir,
+			}
+			if _, err := os.Stat(authFilePath); err == nil {
+				logger.Info("using available authentication information for pulling image")
+				srcContext.AuthFilePath = authFilePath
+			}
+			return srcContext, nil
+		},
+	}
+}
+
+func configureStorage(cfg *config) (storage.Instance, error) {
+	storeDir := filepath.Join(cfg.cacheDir, storageDir)
+	if err := os.MkdirAll(storeDir, 0700); err != nil {
+		return nil, fmt.Errorf("unable to create storage directory for catalogs: %w", err)
+	}
+
+	baseStorageURL, err := url.Parse(fmt.Sprintf("%s/catalogs/", cfg.externalAddr))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create base storage URL: %w", err)
+	}
+
+	return storage.LocalDirV1{RootDir: storeDir, RootURL: baseStorageURL}, nil
+}
+
+func configureCatalogServer(mgr ctrl.Manager, cfg *config, localStorage storage.Instance, cw *certwatcher.CertWatcher) error {
+	catalogServerConfig := serverutil.CatalogServerConfig{
+		ExternalAddr: cfg.externalAddr,
+		CatalogAddr:  cfg.catalogServerAddr,
+		CertFile:     cfg.certFile,
+		KeyFile:      cfg.keyFile,
+		LocalStorage: localStorage,
+	}
+
+	return serverutil.AddCatalogServerToManager(mgr, catalogServerConfig, cw)
+}
+
+func setupControllers(mgr ctrl.Manager, cfg *config, unpacker *source.ContainersImageRegistry, localStorage storage.Instance,
+	globalPullSecretKey *k8stypes.NamespacedName, authFilePath string) error {
+	if err := (&corecontrollers.ClusterCatalogReconciler{
+		Client:   mgr.GetClient(),
+		Unpacker: unpacker,
+		Storage:  localStorage,
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create controller: %w", err)
+	}
+
+	if globalPullSecretKey != nil {
+		setupLog.Info("creating SecretSyncer controller for watching secret", "Secret", cfg.globalPullSecret)
+		err := (&corecontrollers.PullSecretReconciler{
+			Client:       mgr.GetClient(),
+			AuthFilePath: authFilePath,
+			SecretKey:    *globalPullSecretKey,
+		}).SetupWithManager(mgr)
+		if err != nil {
+			return fmt.Errorf("unable to create controller: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func setupHealthChecks(mgr ctrl.Manager) error {
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		return fmt.Errorf("unable to set up health check: %w", err)
+	}
+
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		return fmt.Errorf("unable to set up ready check: %w", err)
+	}
+
+	return nil
+}
+
+func setupGarbageCollector(mgr ctrl.Manager, k8sCfg *rest.Config, cfg *config, unpackCacheBasePath string) error {
+	metaClient, err := metadata.NewForConfig(k8sCfg)
+	if err != nil {
+		return fmt.Errorf("unable to setup client for garbage collection: %w", err)
+	}
+
+	gc := &garbagecollection.GarbageCollector{
+		CachePath:      unpackCacheBasePath,
+		Logger:         ctrl.Log.WithName("garbage-collector"),
+		MetadataClient: metaClient,
+		Interval:       cfg.gcInterval,
+	}
+	if err := mgr.Add(gc); err != nil {
+		return fmt.Errorf("unable to add garbage collector to manager: %w", err)
+	}
+
+	return nil
+}
+
+func setupWebhook(mgr ctrl.Manager) error {
+	if err := (&webhook.ClusterCatalog{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create webhook: %w", err)
+	}
+
+	return nil
+}
+
+func podNamespace() string {
+	namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return "olmv1-system"
+	}
+	return string(namespace)
 }
